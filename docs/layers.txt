@@ -1,0 +1,40 @@
+                       INPUT
+                         │
+             HDFC Bank / HDFC Card CSV
+                         │
+                         ▼
+                 Parser Layer
+                         │
+                         ▼
+               Normalization Layer
+                         │
+                         ▼
+                Enrichment Layer
+             ┌───────────┴───────────┐
+             │                       │
+      Counterparty             Transaction Type
+      normalization             classification
+             │                       │
+             └───────────┬───────────┘
+                         ▼
+                   Mapping Engine
+                         │
+                 ┌───────┴───────┐
+                 │               │
+              Mapped        Uncategorized
+                 │               │
+                 └───────┬───────┘
+                         ▼
+                  Import Session
+                         │
+               Review / Resolve
+                         │
+                      Validate
+                         │
+                      Submit
+                         ▼
+                    Local DB
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+          Future analysis        Notion export

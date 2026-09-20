@@ -1,0 +1,74 @@
+Java + Spring Boot
+        │
+        ▼
+Simple CLI
+        │
+        ▼
+HDFC Bank CSV parser
+HDFC Credit Card CSV parser
+        │
+        ▼
+Bank-agnostic normalized transaction
+        │
+        ▼
+Counterparty extraction
+Payment-mode extraction
+UPI/comment/reference extraction
+        │
+        ▼
+Mapping rules
+        │
+        ├── Known → mapped
+        └── Unknown → Uncategorized
+                         │
+                         ▼
+                 Interactive review
+                         │
+                         ▼
+                      Validate
+                         │
+                         ▼
+                       Submit
+
+
+
+                       INPUT
+                         │
+             HDFC Bank / HDFC Card CSV
+                         │
+                         ▼
+                 Parser Layer
+                         │
+                         ▼
+               Normalization Layer
+                         │
+                         ▼
+                Enrichment Layer
+             ┌───────────┴───────────┐
+             │                       │
+      Counterparty             Transaction Type
+      normalization             classification
+             │                       │
+             └───────────┬───────────┘
+                         ▼
+                   Mapping Engine
+                         │
+                 ┌───────┴───────┐
+                 │               │
+              Mapped        Uncategorized -> Interactive review
+                 │               │
+                 └───────┬───────┘
+                         ▼
+                  Import Session
+                         │
+                  Review / Resolve
+                         │
+           Validate (structural/semantic)
+                         │
+                      Submit
+                         ▼
+                    Local DB
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+          Future analysis        Notion export

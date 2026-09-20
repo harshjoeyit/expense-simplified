@@ -1,0 +1,10 @@
+HDFC Bank CSV Parser
+        │
+        ▼
+Narration type detection
+        │
+  ┌─────┼──────┬──────┬──────┐
+  UPI   IMPS    FT    A2A     ...
+  │      │      │
+  ▼      ▼      ▼
+specific narration parsers
