@@ -21,6 +21,16 @@ class UpiNarrationParserTest {
     }
 
     @Test
+    void canParse_onNonUpiNarration_returnsFalse() {
+        assertThat(upiNarrationParser.canParse("TP-12345")).isEqualTo(false);
+    }
+
+    @Test
+    void canParse_onUpiNarration_returnsTrue() {
+        assertThat(upiNarrationParser.canParse("UPI-12345")).isEqualTo(true);
+    }
+
+    @Test
     void parse_validNarrationWithoutUserComment_returnsParsedResultsWithoutUserComment() {
         String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029";
         NarrationParseResult result = upiNarrationParser.parse(narration);
@@ -36,7 +46,7 @@ class UpiNarrationParserTest {
 
     @Test
     void parse_validNarrationWithUserComment_returnsParsedResultWithUserComment() {
-        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundary-payment";
+        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundry-payment";
         NarrationParseResult result = upiNarrationParser.parse(narration);
 
         assertThat(result.getNarrationType()).isEqualTo(NarrationType.UPI);
@@ -45,7 +55,20 @@ class UpiNarrationParserTest {
         assertThat(result.getCounterpartyId()).isEqualTo("1234567890-2@AXL");
         assertThat(result.getCounterpartyType()).isNull();
         assertThat(result.getBankReference()).isEqualTo("659929880029");
-        assertThat(result.getUserComment()).isEqualTo("Laundary-payment");
+        assertThat(result.getUserComment()).isEqualTo("Laundry-payment");
+    }
+
+    @Test
+    void parse_validNarrationWithDoubleSpaceInName_returnsParsedResult() {
+        String narration = "UPI-MANOJ  KUMAR-1234567890-2@AXL-CNRB0000011-659929880029";
+        NarrationParseResult result = upiNarrationParser.parse(narration);
+
+        assertThat(result.getNarrationType()).isEqualTo(NarrationType.UPI);
+        assertThat(result.getTxnMode()).isEqualTo(TxnMode.UPI);
+        assertThat(result.getCounterparty()).isEqualTo("MANOJ  KUMAR");
+        assertThat(result.getCounterpartyId()).isEqualTo("1234567890-2@AXL");
+        assertThat(result.getCounterpartyType()).isNull();
+        assertThat(result.getBankReference()).isEqualTo("659929880029");
     }
 
     @Test
@@ -59,7 +82,7 @@ class UpiNarrationParserTest {
 
     @Test
     void parse_narrationWithoutUpiID_throwsMalformedException() {
-        String narration = "UPI-MANOJ KUMAR-CNRB0000011-659929880029-Laundary-payment";
+        String narration = "UPI-MANOJ KUMAR-CNRB0000011-659929880029-Laundry-payment";
 
         assertThatThrownBy(() -> upiNarrationParser.parse(narration))
                 .isInstanceOf(MalformedNarrationException.class)
@@ -68,7 +91,7 @@ class UpiNarrationParserTest {
 
     @Test
     void parse_narrationWithoutSeparatorBetweenUpiPrefixAndName_throwsMalformedException() {
-        String narration = "UPIMANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundary-payment";
+        String narration = "UPIMANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029";
 
         assertThatThrownBy(() -> upiNarrationParser.parse(narration))
                 .isInstanceOf(MalformedNarrationException.class)
@@ -77,10 +100,28 @@ class UpiNarrationParserTest {
 
     @Test
     void parse_narrationWithoutBankRef_throwsMalformedException() {
-        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-Laundary-payment";
+        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011";
 
         assertThatThrownBy(() -> upiNarrationParser.parse(narration))
                 .isInstanceOf(MalformedNarrationException.class)
                 .hasMessage("Missing Bank Ref");
+    }
+
+    @Test
+    void parse_narrationWithInvalidBankRef_throwsMalformedException() {
+        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-1234";
+
+        assertThatThrownBy(() -> upiNarrationParser.parse(narration))
+                .isInstanceOf(MalformedNarrationException.class)
+                .hasMessage("Missing Bank Ref");
+    }
+
+    @Test
+    void parse_narrationWithoutIfsc_throwsMalformedException() {
+        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-1234";
+
+        assertThatThrownBy(() -> upiNarrationParser.parse(narration))
+                .isInstanceOf(MalformedNarrationException.class)
+                .hasMessage("Missing Bank IFSC");
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 /**
  * Parses UPI transactions
  * Expected Format: UPI-<Counterparty Name>-<UPI Id>-<Bank IFSC>-<Bank Refence>-<User comment>
- * UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundary-payment
+ * UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundry-payment
  */
 @Service
 public class UpiNarrationParser implements NarrationParser {
@@ -81,6 +81,8 @@ public class UpiNarrationParser implements NarrationParser {
 
         // <Bank Refence>-<User comment>
         String bankIfscStrippedNarration = upiStrippedNarration.substring(bankIfsc.length() + 1);
+
+        System.out.println("bank ifsc stripped narration: "  + bankIfscStrippedNarration);
 
         String utr = narrationTooling.extract12DigUpiUtr(bankIfscStrippedNarration);
         System.out.println("Bank Ref (UTR): " + utr);
