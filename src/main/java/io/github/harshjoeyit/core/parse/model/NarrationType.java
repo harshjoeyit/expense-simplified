@@ -2,6 +2,7 @@ package io.github.harshjoeyit.core.parse.model;
 
 public enum NarrationType {
     UPI,
+    IMPS,
     FT,
     TP,
     A2A,

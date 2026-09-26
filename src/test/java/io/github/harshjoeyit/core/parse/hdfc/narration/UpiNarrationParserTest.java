@@ -100,7 +100,7 @@ class UpiNarrationParserTest {
 
     @Test
     void parse_narrationWithoutBankRef_throwsMalformedException() {
-        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011";
+        String narration = "UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-12";
 
         assertThatThrownBy(() -> upiNarrationParser.parse(narration))
                 .isInstanceOf(MalformedNarrationException.class)

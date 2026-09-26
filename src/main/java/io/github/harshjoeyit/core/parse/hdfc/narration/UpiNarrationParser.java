@@ -31,7 +31,7 @@ public class UpiNarrationParser implements NarrationParser {
     // UPI ID and comment can both have a "-", hence simple split wouldn't work
     @Override
     public NarrationParseResult parse(String narration) throws MalformedNarrationException {
-        if (!narration.startsWith(UPIPrefix)) {
+        if (!canParse(narration)) {
             throw new MalformedNarrationException("UPI txn narration should start with 'UPI'");
         }
         if (narration.charAt(3) != separator) {
