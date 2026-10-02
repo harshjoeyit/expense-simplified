@@ -8,12 +8,20 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * Canonical normalized representation of a financial transaction across all sources.
+ */
 @Builder
 @Data
 public class NormalizedTransaction {
     private LocalDateTime datetime;
     private LocalDateTime valueDatetime;
-    private Double amount;                  // Absolute amount
+
+    /**
+     * Absolute transaction amount (always >= 0).
+     * The cash flow direction (inflow vs outflow) is captured exclusively by {@link #direction}.
+     */
+    private Double amount;
     private TxnDirection direction;
     private TxnType type;
     private TxnMode mode;

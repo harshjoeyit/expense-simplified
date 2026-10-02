@@ -78,7 +78,7 @@ public class ScapiaCreditCardStatementParser implements Parser {
                     double rawAmount = ParseUtil.parseAmount(parsedAmount);
                     LocalDateTime dateTime = LocalDateTime.of(date, time);
 
-                    // Derived fields
+                    // Derived fields (NormalizedTransaction requires absolute amount; sign determines direction)
                     TxnType type = rawAmount < 0 ? TxnType.PURCHASE : TxnType.REFUND;
                     TxnDirection direction = rawAmount < 0 ? TxnDirection.DEBIT : TxnDirection.CREDIT;
                     double amount = Math.abs(rawAmount);
