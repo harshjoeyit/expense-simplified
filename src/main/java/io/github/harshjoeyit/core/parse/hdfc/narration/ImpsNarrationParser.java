@@ -4,11 +4,13 @@ import io.github.harshjoeyit.core.parse.exception.MalformedNarrationException;
 import io.github.harshjoeyit.core.parse.model.NarrationParseResult;
 import io.github.harshjoeyit.core.parse.model.NarrationType;
 import io.github.harshjoeyit.core.parse.model.TxnMode;
+import org.springframework.stereotype.Component;
 
 /**
  * Parses IMPS narration
  * IMPS-622725189133-HRITIJ GUPTA-BARB-XXXXXXXXXX6199-ARCHITECT
  */
+@Component
 public class ImpsNarrationParser implements NarrationParser {
 
     private static final String IMPSPrefix = "IMPS";

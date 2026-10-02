@@ -5,6 +5,8 @@ import io.github.harshjoeyit.core.parse.exception.MalformedNarrationException;
 import io.github.harshjoeyit.core.parse.model.NarrationParseResult;
 import io.github.harshjoeyit.core.parse.model.NarrationType;
 import io.github.harshjoeyit.core.parse.model.TxnMode;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,7 +14,8 @@ import org.springframework.stereotype.Service;
  * Expected Format: UPI-<Counterparty Name>-<UPI Id>-<Bank IFSC>-<Bank Refence>-<User comment>
  * UPI-MANOJ KUMAR-1234567890-2@AXL-CNRB0000011-659929880029-Laundry-payment
  */
-@Service
+@Slf4j
+@Component
 public class UpiNarrationParser implements NarrationParser {
 
     private final NarrationTooling narrationTooling;
@@ -50,14 +53,14 @@ public class UpiNarrationParser implements NarrationParser {
         }
 
         String counterpartyName = prefixStrippedNarration.substring(0, nameUpiIDSeparatorIndex);
-        System.out.println("counterpartyName: " + counterpartyName);
+        log.debug("counterpartyName: {}", counterpartyName);
 
         // <UPI Id>-<Bank IFSC>-<Bank Refence>-<User comment>
         String counterPartyStrippedNarration = prefixStrippedNarration.substring(nameUpiIDSeparatorIndex+1);
 
         // UPI
         String UpiId = narrationTooling.extractPrefixUpiId(counterPartyStrippedNarration);
-        System.out.println("UPI: " + UpiId);
+        log.debug("UPI: {}", UpiId);
         if (UpiId == null) {
             throw new MalformedNarrationException("Missing UPI ID");
         }
@@ -70,7 +73,7 @@ public class UpiNarrationParser implements NarrationParser {
         String upiStrippedNarration = counterPartyStrippedNarration.substring(UpiId.length() + 1);
 
         String bankIfsc = narrationTooling.extractBankIfsc(upiStrippedNarration);
-        System.out.println("IFSC: " + bankIfsc);
+        log.debug("IFSC: {}", bankIfsc);
         if (bankIfsc == null) {
             throw new MalformedNarrationException("Missing Bank IFSC");
         }
@@ -82,10 +85,10 @@ public class UpiNarrationParser implements NarrationParser {
         // <Bank Refence>-<User comment>
         String bankIfscStrippedNarration = upiStrippedNarration.substring(bankIfsc.length() + 1);
 
-        System.out.println("bank ifsc stripped narration: "  + bankIfscStrippedNarration);
+        log.debug("bank ifsc stripped narration: {}", bankIfscStrippedNarration);
 
         String utr = narrationTooling.extract12DigUpiUtr(bankIfscStrippedNarration);
-        System.out.println("Bank Ref (UTR): " + utr);
+        log.debug("Bank Ref (UTR): {}", utr);
         if (utr == null) {
             throw new MalformedNarrationException("Missing Bank Ref");
         }

@@ -1,0 +1,7 @@
+date,time,description,amount
+16-07-2026,10:47,Gayitri,-35.00
+16-07-2026,10:50,Sameera P,-24.00
+16-07-2026,15:00,Elior India Food Services Llp,-189.00
+17-07-2026,14:34,Elior India Food Services Llp,-180.00
+18-07-2026,09:44,Blinkit,-272.00
+18-07-2026,13:13,Shashirekha C K,-100.00

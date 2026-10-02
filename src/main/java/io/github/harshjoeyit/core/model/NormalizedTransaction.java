@@ -6,24 +6,24 @@ import io.github.harshjoeyit.core.parse.model.TxnMode;
 import io.github.harshjoeyit.core.parse.model.TxnType;
 import lombok.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Builder
 @Data
 public class NormalizedTransaction {
-    private LocalDate txnDate;
-    private LocalDate valueDate;
-    private Double amount;
+    private LocalDateTime datetime;
+    private LocalDateTime valueDatetime;
+    private Double amount;                  // Absolute amount
     private TxnDirection direction;
-    private TxnType txnType;
-    private TxnMode txnMode;
-    private TxnCategory txnCategory;
+    private TxnType type;
+    private TxnMode mode;
+    private TxnCategory category;
     private String counterparty;
     private String counterpartyId;
     private CounterpartyType counterpartyType;
     private String userComment;
     private String bankReference;
     private String instrumentId;
-    private TxnReviewStatus txnReviewStatus;
-    private RawCsvRow rawCsvRow;
+    private TxnReviewStatus reviewStatus;
+    private String rawTxn;
 }
