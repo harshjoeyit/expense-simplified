@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 /**
  * Canonical normalized representation of a financial transaction across all sources.
  */
-@Builder
 @Data
+@Builder(toBuilder = true)
 public class NormalizedTransaction {
     private LocalDateTime datetime;
     private LocalDateTime valueDatetime;

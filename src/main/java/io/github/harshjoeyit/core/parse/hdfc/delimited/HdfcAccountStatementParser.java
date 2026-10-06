@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -39,6 +40,8 @@ public class HdfcAccountStatementParser implements Parser {
         this.narrationParsers = Collections.emptySet();
     }
 
+    // Todo: why explicit autowire needed?
+    @Autowired
     public HdfcAccountStatementParser(Set<NarrationParser> narrationParsers) {
         this.narrationParsers = narrationParsers != null ? narrationParsers : Collections.emptySet();
     }
@@ -140,6 +143,6 @@ public class HdfcAccountStatementParser implements Parser {
         return narrationParsers.stream()
                 .filter(np -> np.canParse(narration))
                 .findFirst()
-                .orElseThrow(() -> new UnsupportedNarrationException("Could not parse: " + narration));
+                .orElseThrow(() -> new UnsupportedNarrationException(narration + " is not supported"));
     }
 }

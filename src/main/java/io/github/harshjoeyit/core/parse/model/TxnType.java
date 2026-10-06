@@ -7,5 +7,6 @@ public enum TxnType {
     INTEREST,
     LOAN,
     LOAN_REPAYMENT,
-    UNKNOWN
+    UNKNOWN,
+    SELF_ACCOUNT_TRANSFER
 }

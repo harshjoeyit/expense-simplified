@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: expense-simplified
+  shell:
+    interactive:
+      enabled: true
