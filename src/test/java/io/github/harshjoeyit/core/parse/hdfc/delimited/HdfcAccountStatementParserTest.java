@@ -6,7 +6,6 @@ import io.github.harshjoeyit.core.parse.NarrationTooling;
 import io.github.harshjoeyit.core.parse.exception.MalformedCsvException;
 import io.github.harshjoeyit.core.parse.hdfc.narration.ImpsNarrationParser;
 import io.github.harshjoeyit.core.parse.hdfc.narration.UpiNarrationParser;
-import io.github.harshjoeyit.core.parse.model.CounterpartyType;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnMode;
 import io.github.harshjoeyit.core.parse.model.TxnType;

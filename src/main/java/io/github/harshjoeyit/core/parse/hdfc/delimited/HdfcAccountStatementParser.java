@@ -36,12 +36,6 @@ public class HdfcAccountStatementParser implements Parser {
 
     private final Set<NarrationParser> narrationParsers;
 
-    public HdfcAccountStatementParser() {
-        this.narrationParsers = Collections.emptySet();
-    }
-
-    // Todo: why explicit autowire needed?
-    @Autowired
     public HdfcAccountStatementParser(Set<NarrationParser> narrationParsers) {
         this.narrationParsers = narrationParsers != null ? narrationParsers : Collections.emptySet();
     }

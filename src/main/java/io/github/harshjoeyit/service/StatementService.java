@@ -47,17 +47,12 @@ public class StatementService {
         };
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            try {
-                List<NormalizedTransaction> transactions =  new ArrayList<>();
-                if (fileType == FileType.DELIMITED) {
-                    transactions = parser.parseDelimited(reader);
-                }
-                return mapper.enrich(transactions);
-            } catch (Exception e) {
-                log.error("Failed to parse due to error: ", e);
+            List<NormalizedTransaction> transactions =  new ArrayList<>();
+            if (fileType == FileType.DELIMITED) {
+                transactions = parser.parseDelimited(reader);
             }
-        }
 
-        return List.of();
+            return mapper.enrich(transactions);
+        }
     }
 }

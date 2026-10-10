@@ -5,7 +5,6 @@ import io.github.harshjoeyit.core.mapping.repository.MappingRuleRepository;
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
 import io.github.harshjoeyit.core.model.TxnReviewStatus;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -26,33 +25,38 @@ public class TransactionMapper {
         log.info("starting mapping for {}", unmappedTransactions.size());
         List<NormalizedTransaction> mappedTransactions = new ArrayList<>(unmappedTransactions.size());
 
-        for(NormalizedTransaction utxn : unmappedTransactions) {
-            if (utxn.getCounterpartyId() != null && !utxn.getCounterpartyId().isEmpty()) {
-                Optional<MappingRule> rule = mappingRuleRepository.findByCounterpartyId(utxn.getCounterpartyId());
-                rule.ifPresentOrElse(
-                        mappingRule -> mappedTransactions.add(applyRule(utxn, mappingRule)),
-                        () -> mappedTransactions.add(utxn));
-            } else if (utxn.getCounterparty() != null && !utxn.getCounterparty().isEmpty()) {
-                Optional<MappingRule> rule = mappingRuleRepository.findByCounterpartyName(utxn.getCounterparty());
-                rule.ifPresentOrElse(
-                        mappingRule -> mappedTransactions.add(applyRule(utxn, mappingRule)),
-                        () -> mappedTransactions.add(utxn));
-            } else {
-                log.info("No mapping rule found for Txn: {} ", utxn);
-                mappedTransactions.add(utxn);
-            }
+        for (NormalizedTransaction utxn : unmappedTransactions) {
+            mappedTransactions.add(
+                    findRule(utxn)
+                            .map(rule -> applyRule(utxn, rule))
+                            .orElse(utxn)
+            );
         }
 
         log.info("Mapped {} transactions", mappedTransactions.size());
-
         return mappedTransactions;
+    }
+
+    private Optional<MappingRule> findRule(NormalizedTransaction txn) {
+        // Try Counterparty ID first
+        if (txn.getCounterpartyId() != null && !txn.getCounterpartyId().isBlank()) {
+            Optional<MappingRule> rule = mappingRuleRepository.findByCounterpartyId(txn.getCounterpartyId());
+            if (rule.isPresent()) {
+                return rule;
+            }
+        }
+        // Fall back to Counterparty Name
+        if (txn.getCounterparty() != null && !txn.getCounterparty().isBlank()) {
+            return mappingRuleRepository.findByCounterpartyName(txn.getCounterparty());
+        }
+        return Optional.empty();
     }
 
     private NormalizedTransaction applyRule(NormalizedTransaction unmappedTxn, MappingRule rule) {
         NormalizedTransaction mappedTxn =  unmappedTxn.toBuilder().build();
-        mappedTxn.setCategory(rule.getTxnCategory());
-        mappedTxn.setType(rule.getTxnType());
-        if (rule.isAutoReview()) {
+        mappedTxn.setCategory(rule.txnCategory());
+        mappedTxn.setType(rule.txnType());
+        if (rule.autoReview()) {
             mappedTxn.setReviewStatus(TxnReviewStatus.AUTO_REVIEWED);
         }
         return mappedTxn;

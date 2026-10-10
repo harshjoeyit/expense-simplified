@@ -3,6 +3,7 @@ package io.github.harshjoeyit.cli.command;
 import io.github.harshjoeyit.core.model.FileType;
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
 import io.github.harshjoeyit.service.StatementService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 import org.springframework.shell.table.ArrayTableModel;
@@ -17,6 +18,7 @@ import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @Command(group = "Statement Parsing Commands")
 public class StatementCommands {
 
@@ -54,6 +56,7 @@ public class StatementCommands {
 
             return renderTable(transactions, file.getName(), stmtType);
         } catch (Exception e) {
+            log.error("Error parsing statement", e);
             return "Error parsing statement: " + e.getMessage();
         }
     }
