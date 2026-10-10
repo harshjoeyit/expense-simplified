@@ -14,19 +14,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class InMemoryMappingRuleRepository implements MappingRuleRepository {
 
     public InMemoryMappingRuleRepository(MappingConfig mappingConfig) {
+
         if (mappingConfig.counterpartyIdRules() != null) {
             log.info("Loaded {}  Counterparty ID rules", mappingConfig.counterpartyIdRules().size());
-            idRules.putAll(mappingConfig.counterpartyIdRules());
-            log.info("Loaded ID rule keys: {}", idRules.keySet());
+            mappingConfig.counterpartyIdRules().forEach(
+                    (id, rule) -> idRules.put(normalize(id), rule)
+            );
         } else {
-            log.info("No Counterparty ID rules loaded");
+            log.warn("No Counterparty ID rules loaded");
         }
+
         if (mappingConfig.counterpartyNameRules() != null) {
             log.info("Loaded {}  Counterparty Name rules", mappingConfig.counterpartyNameRules().size());
-            nameRules.putAll(mappingConfig.counterpartyNameRules());
-            log.info("Loaded Name rule keys: {}", nameRules.keySet());
+            mappingConfig.counterpartyNameRules().forEach(
+                    (id, rule) -> nameRules.put(normalize(id), rule)
+            );
         } else {
-            log.info("No Counterparty Name rules loaded");
+            log.warn("No Counterparty Name rules loaded");
         }
     }
 
@@ -35,12 +39,12 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
 
     @Override
     public Optional<MappingRule> findByCounterpartyId(String counterpartyId) {
-        return Optional.ofNullable(idRules.get(counterpartyId));
+        return Optional.ofNullable(idRules.get(normalize(counterpartyId)));
     }
 
     @Override
     public Optional<MappingRule> findByCounterpartyName(String counterpartyName) {
-        return Optional.ofNullable(nameRules.get(counterpartyName));
+        return Optional.ofNullable(nameRules.get(normalize(counterpartyName)));
     }
 
     @Override
@@ -50,7 +54,7 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
             return;
         }
         // Todo: validate if rule is proper
-        idRules.put(counterpartyId, rule);
+        idRules.put(normalize(counterpartyId), rule);
     }
 
     @Override
@@ -60,6 +64,14 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
             return;
         }
         // Todo: validate if rule is proper
-        nameRules.put(counterpartyName, rule);
+        nameRules.put(normalize(counterpartyName), rule);
+    }
+
+    private String normalize(String key) {
+        if (key == null) {
+            return "";
+        }
+        // Trim surrounding spaces, collapse consecutive internal spaces, convert to uppercase
+        return key.trim().replaceAll("\\s+", " ").toUpperCase();
     }
 }
