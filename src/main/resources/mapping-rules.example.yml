@@ -1,0 +1,16 @@
+# mapping rules has counterparty id, names rule mapping for InMemoryTransactionMappingRepository
+# this is intended for prototype only till database support is enabled
+# Important Note: wrap the id and name in [..] to prevent springboot
+mapping:
+  counterparty-id-rules:
+    "[test@sbi]":
+      # follow TxnCategory for eligible values
+      txn-category: "UTILITIES"
+      # follow TxnType for eligible values
+      txn-type: "PURCHASE"
+      auto-review: true
+  counterparty-name-rules:
+    "[MANOJ KUMAR]":
+      txn-category: "UTILITIES"
+      txn-type: "PURCHASE"
+      auto-review: false

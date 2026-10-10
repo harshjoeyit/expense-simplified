@@ -4,3 +4,6 @@ spring:
   shell:
     interactive:
       enabled: true
+  config:
+    import:
+      - optional:classpath:mapping-rules.yml

@@ -40,3 +40,5 @@ build/
 
 ### Sensitive/Private Data ###
 docs/private/
+
+src/main/resources/mapping-rules.yml
