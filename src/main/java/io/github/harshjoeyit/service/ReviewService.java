@@ -41,7 +41,7 @@ public class ReviewService {
             log.info("finding the latest statement...");
             statement = statementRepository.findLatest();
         } else {
-            // find the transactions for provided statement Id
+            // find the transactions for provided statementId
             log.info("finding the latest statement: {}", statementId);
             statement = statementRepository.findById(statementId);
         }
@@ -55,7 +55,7 @@ public class ReviewService {
     }
 
     // Updates the transaction with provided inputs
-    public void resolveTransaction(UUID txnId, TxnCategory txnCategory, TxnType txnType, String reviewRemark,
+    public void resolveTransaction(UUID txnId, TxnType txnType, TxnCategory txnCategory, String reviewRemark,
                                    SaveRule saveRule) throws InvalidTransactionId, InvalidStatementId, UnsupportedOperationException {
         if (txnId == null) {
             throw new IllegalArgumentException("transaction Id cannot be null");

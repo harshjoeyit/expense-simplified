@@ -13,5 +13,5 @@ public enum TxnType {
     SELF_ACCOUNT_TRANSFER,          // N/A
     INVESTMENT,                     // N/A
     SALARY,                         // Category: INCOME
-    UNKNOWN,
+    UNKNOWN,                        // Todo: remove
 }

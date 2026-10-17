@@ -159,7 +159,7 @@ class ReviewServiceTest {
                 .thenReturn(List.of(NormalizedTransaction.builder().build()));
 
         // Act
-        reviewService.resolveTransaction(txnId, TxnCategory.SHOPPING, null, "   ", null);
+        reviewService.resolveTransaction(txnId, null, TxnCategory.SHOPPING, "   ", null);
 
         // Assert
         assertThat(txn.getCategory()).isEqualTo(TxnCategory.SHOPPING);
@@ -197,7 +197,7 @@ class ReviewServiceTest {
                 .thenReturn(List.of(NormalizedTransaction.builder().build()));
 
         // Act
-        reviewService.resolveTransaction(txnId, TxnCategory.UTILITIES, TxnType.PURCHASE,
+        reviewService.resolveTransaction(txnId, TxnType.PURCHASE, TxnCategory.UTILITIES,
                 "Electricity bill", saveRule);
 
         // Assert
@@ -236,7 +236,7 @@ class ReviewServiceTest {
                 .build();
 
         // Act & Assert
-        assertThatThrownBy(() -> reviewService.resolveTransaction(txnId, TxnCategory.SHOPPING, TxnType.PURCHASE, "remark", incompleteSaveRule))
+        assertThatThrownBy(() -> reviewService.resolveTransaction(txnId, TxnType.PURCHASE, TxnCategory.SHOPPING, "remark", incompleteSaveRule))
                 .isInstanceOf(InvalidMappingRule.class)
                 .hasMessageStartingWith("Save rule is incomplete. Type and ID are required:");
 
@@ -267,7 +267,7 @@ class ReviewServiceTest {
         when(statementRepository.findById(statementId)).thenReturn(Optional.of(statement));
 
         // Act
-        reviewService.resolveTransaction(txnId, TxnCategory.SHOPPING, TxnType.PURCHASE, "Reviewed", null);
+        reviewService.resolveTransaction(txnId, TxnType.PURCHASE, TxnCategory.SHOPPING, "Reviewed", null);
 
         // Assert
         verify(transactionRepository).saveTransaction(txn);
@@ -302,7 +302,7 @@ class ReviewServiceTest {
                 .thenReturn(List.of(remainingTxn));
 
         // Act
-        reviewService.resolveTransaction(txnId, TxnCategory.SHOPPING, TxnType.PURCHASE, "Reviewed", null);
+        reviewService.resolveTransaction(txnId, TxnType.PURCHASE, TxnCategory.SHOPPING, "Reviewed", null);
 
         // Assert
         verify(transactionRepository).saveTransaction(txn);
@@ -316,7 +316,7 @@ class ReviewServiceTest {
         when(transactionRepository.findById(txnId)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> reviewService.resolveTransaction(txnId, TxnCategory.FOOD, TxnType.PURCHASE, "Remark", null))
+        assertThatThrownBy(() -> reviewService.resolveTransaction(txnId, TxnType.PURCHASE, TxnCategory.FOOD, "Remark", null))
                 .isInstanceOf(InvalidTransactionId.class)
                 .hasMessage("transaction" + txnId + " not found");
 

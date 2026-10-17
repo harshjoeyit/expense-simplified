@@ -37,6 +37,7 @@ public class InMemoryTransactionRepository implements TransactionRepository {
                 .stream()
                 .filter(transaction -> Objects.equals(transaction.getStatementId(), statementId)
                         && transaction.getReviewStatus() == TxnReviewStatus.PENDING)
+                .sorted(Comparator.comparing(NormalizedTransaction::getDatetime))
                 .toList();
 
         log.debug("found {} pending review transactions for statement: {}", pending.size(), statementId);
