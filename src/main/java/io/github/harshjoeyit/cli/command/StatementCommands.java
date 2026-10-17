@@ -2,6 +2,9 @@ package io.github.harshjoeyit.cli.command;
 
 import io.github.harshjoeyit.core.model.FileType;
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
+import io.github.harshjoeyit.core.model.Statement;
+import io.github.harshjoeyit.service.InstrumentService;
+import io.github.harshjoeyit.service.ReviewService;
 import io.github.harshjoeyit.service.StatementService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.shell.command.annotation.Command;
@@ -17,16 +20,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Command(group = "Statement Parsing Commands")
 public class StatementCommands {
 
     private final StatementService statementService;
+    private final InstrumentService instrumentService;
+    private final ReviewService reviewService;
 
-    public StatementCommands(StatementService statementService) {
+    public StatementCommands(
+            StatementService statementService,
+            InstrumentService instrumentService,
+            ReviewService reviewService) {
         this.statementService = statementService;
+        this.instrumentService = instrumentService;
+        this.reviewService = reviewService;
     }
+
+    /**
+     * Todo: command to view statements (most recent at the top), can pass -n flag to limit the results. Default top 3.
+     *  User can use this to find out statement Id (required by review command) and other details
+     */
 
     @Command(
             command = "parse",
@@ -34,7 +51,7 @@ public class StatementCommands {
     )
     public String parse(
             @Option(longNames = "file", shortNames = 'f', required = true, description = "Absolute path to statement file: /Users/tminus1/Downloads/statement.csv") File file,
-            @Option(longNames = "type", shortNames = 't', required = true, description = "Statement type (CC-Credit Card, ACC-Bank Account): HDFC_CC, HDFC_ACC, SCAPIA_CC") StatementType stmtType
+            @Option(longNames = "instrument", shortNames = 'i', required = true, description = "Instrument: Banks account, credit card identifier") String instrumentId
     ) {
         // Validate if file exists
         if (!file.exists() || !file.isFile()) {
@@ -46,22 +63,59 @@ public class StatementCommands {
             return "Invalid file format. PDF is not supported yet";
         }
 
+        // Determine file statementType
+        Optional<StatementType> statementType = instrumentService.getStatementType(instrumentId);
+        if (statementType.isEmpty()) {
+            return "Error: statement type could not be determined";
+        }
+        log.info("Using statement type: {}", statementType);
+
         try {
-            List<NormalizedTransaction> transactions
-                    = statementService.parseStatement(file, FileType.DELIMITED, stmtType);
+            // Create a statement
+            Statement statement = statementService.createStatement(FileType.DELIMITED, file.getName(), instrumentId);
+
+            // Parse transactions
+            List<NormalizedTransaction> transactions = statementService.parseStatement(
+                    file, FileType.DELIMITED, statementType.get(), instrumentId, statement.id());
 
             if (transactions.isEmpty()) {
                 return "No transactions found in " + file.getName();
             }
 
-            return renderTable(transactions, file.getName(), stmtType);
+            return renderTable(transactions, file.getName(), statementType.get());
         } catch (Exception e) {
             log.error("Error parsing statement", e);
             return "Error parsing statement: " + e.getMessage();
         }
     }
 
-    // Determines PDF uisng magic bytes in file header
+    @Command(
+            command = "review",
+            description = "Manually review transactions to update category, type, remarks, etc"
+    )
+    public String review(
+            @Option(longNames = "statement", shortNames = 's', required = false, description = "Absolute path to statement file: /Users/tminus1/Downloads/statement.csv") UUID statementId
+    ) {
+        try {
+            List<NormalizedTransaction> transactions = reviewService.findPendingReviewTransaction(statementId);
+            if (transactions.isEmpty()) {
+                return "All the transactions for this statement are already reviewed";
+            }
+            return "you need to review " + transactions.size() + " transactions";
+
+            // Loop
+                // Print a snapshot with required details for review only
+                    // print if not null or blank: datetime, mode, counterparty (and name), amount (Dr./Cr.) (color = green/red basd on Dr./Cr.), comment, type, category
+                // Review (capture user inputs)
+                // Resolve
+
+        } catch (Exception e) {
+            log.error("Failed to review", e);
+            return "Failed to review  Error: " + e.getMessage();
+        }
+    }
+
+    // Determines PDF using magic bytes in file header
     private boolean isPdf(File file) {
         byte[] header = new byte[5];
         try (InputStream is = new FileInputStream(file)) {
@@ -109,7 +163,9 @@ public class StatementCommands {
         // Render with max terminal width (e.g., 120 columns)
         String renderedTable = tableBuilder.build().render(140);
 
-        return String.format("%nParsed %d transactions from %s (%s):%n%n%s%n",
-                transactions.size(), filename, type, renderedTable);
+        String statementId = !transactions.isEmpty() ? transactions.get(0).getStatementId().toString() : null;
+
+        return String.format("%nParsed %d transactions from %s (%s):%n%n%s%n%s%n",
+                transactions.size(), filename, type, statementId, renderedTable);
     }
 }

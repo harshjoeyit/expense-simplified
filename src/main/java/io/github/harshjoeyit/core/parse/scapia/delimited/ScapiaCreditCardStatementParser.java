@@ -40,7 +40,7 @@ public class ScapiaCreditCardStatementParser implements Parser {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     @Override
-    public List<NormalizedTransaction> parseDelimited(BufferedReader reader)
+    public List<NormalizedTransaction> parseDelimited(BufferedReader reader, String instrumentId, UUID statementId)
             throws IOException, IllegalArgumentException, UnsupportedNarrationException, MalformedNarrationException {
 
         CSVFormat format = CSVFormat.DEFAULT.builder()
@@ -82,9 +82,12 @@ public class ScapiaCreditCardStatementParser implements Parser {
                     TxnType type = rawAmount < 0 ? TxnType.PURCHASE : TxnType.REFUND;
                     TxnDirection direction = rawAmount < 0 ? TxnDirection.DEBIT : TxnDirection.CREDIT;
                     double amount = Math.abs(rawAmount);
+                    LocalDateTime crTime = LocalDateTime.now();
 
                     // Depend on mapping - category, counterpartyId, instrumentId
                     NormalizedTransaction txn = NormalizedTransaction.builder()
+                            .statementId(statementId)
+                            .instrumentId(instrumentId)
                             .datetime(dateTime)
                             .valueDatetime(dateTime)
                             .amount(amount)
@@ -97,6 +100,8 @@ public class ScapiaCreditCardStatementParser implements Parser {
                             .bankReference(null)
                             .reviewStatus(TxnReviewStatus.PENDING)          // Default = Pending
                             .rawTxn(record.toString())
+                            .createdAt(crTime)
+                            .updatedAt(crTime)
                             .build();
 
                     transactions.add(txn);

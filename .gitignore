@@ -38,7 +38,12 @@ build/
 ### Mac OS ###
 .DS_Store
 
+### Logs ###
+*.log
+*.log.*
+
 ### Sensitive/Private Data ###
 docs/private/
 
 src/main/resources/mapping-rules.yml
+src/main/resources/instruments.yml

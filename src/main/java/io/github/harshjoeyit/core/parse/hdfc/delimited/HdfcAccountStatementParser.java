@@ -41,7 +41,7 @@ public class HdfcAccountStatementParser implements Parser {
     }
 
     @Override
-    public List<NormalizedTransaction> parseDelimited(BufferedReader reader)
+    public List<NormalizedTransaction> parseDelimited(BufferedReader reader, String instrumentId, UUID statementId)
             throws IOException, IllegalArgumentException, UnsupportedNarrationException, MalformedNarrationException {
 
         CSVFormat format = CSVFormat.DEFAULT.builder()
@@ -87,9 +87,12 @@ public class HdfcAccountStatementParser implements Parser {
                     LocalDateTime valueDateTime = LocalDate.parse(parsedValueDate.trim(), DATE_FORMATTER).atStartOfDay();
 
                     NarrationParseResult narrationParserResult = getNarrationParser(parsedNarration).parse(parsedNarration);
+                    LocalDateTime crTime = LocalDateTime.now();
 
                     // Depend on mapping - category, counterpartyId, instrumentId
                     NormalizedTransaction txn = NormalizedTransaction.builder()
+                            .instrumentId(instrumentId)
+                            .statementId(statementId)
                             .datetime(datetime)
                             .valueDatetime(valueDateTime)
                             .amount(amount)
@@ -105,6 +108,8 @@ public class HdfcAccountStatementParser implements Parser {
                                     : (refNumber != null ? refNumber.trim() : null))
                             .reviewStatus(TxnReviewStatus.PENDING)                          // Default = Pending
                             .rawTxn(record.toString())
+                            .createdAt(crTime)
+                            .updatedAt(crTime)
                             .build();
 
                     transactions.add(txn);

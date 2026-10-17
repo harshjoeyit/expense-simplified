@@ -7,3 +7,8 @@ spring:
   config:
     import:
       - optional:classpath:mapping-rules.yml
+      - optional:classpath:instruments.yml
+
+logging:
+  file:
+    name: app.log

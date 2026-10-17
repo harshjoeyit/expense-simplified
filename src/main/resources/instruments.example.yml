@@ -1,0 +1,14 @@
+# Id -> Instrument
+instruments:
+  - id: "hdfc-sal-acc"
+    description: HDFC salary account, Bareilly
+    maskedNum: XXX1234
+    statementType: HDFC_ACC
+  - id: "hdfc-cc-mil"
+    description: HDFC Millenia
+    maskedNum: XXX7197
+    statementType: HDFC_CC
+  - id: "scpia-cc"
+    description: Scapia (Federal Bank)
+    maskedNum: XXX8118
+    statementType: SCAPIA_CC

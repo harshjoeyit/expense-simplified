@@ -7,6 +7,7 @@ import io.github.harshjoeyit.core.parse.exception.UnsupportedNarrationException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 public interface Parser {
 
@@ -16,6 +17,10 @@ public interface Parser {
      * must have absolute (non-negative) amount values, with flow direction
      * denoted solely by their {@code TxnDirection} field.
      */
-    List<NormalizedTransaction> parseDelimited(BufferedReader reader)
+    List<NormalizedTransaction> parseDelimited(BufferedReader reader, String instrumentId, UUID statementId)
             throws IOException, IllegalArgumentException, UnsupportedNarrationException, MalformedNarrationException;
+
+    default List<NormalizedTransaction> parseDelimited(BufferedReader reader) throws IOException {
+        return parseDelimited(reader, null, null);
+    }
 }

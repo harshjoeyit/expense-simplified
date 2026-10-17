@@ -7,6 +7,7 @@ import io.github.harshjoeyit.core.parse.model.TxnType;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Canonical normalized representation of a financial transaction across all sources.
@@ -14,6 +15,10 @@ import java.time.LocalDateTime;
 @Data
 @Builder(toBuilder = true)
 public class NormalizedTransaction {
+
+    @Builder.Default
+    private final UUID id = UUID.randomUUID();
+
     private LocalDateTime datetime;
     private LocalDateTime valueDatetime;
 
@@ -34,4 +39,10 @@ public class NormalizedTransaction {
     private String instrumentId;
     private TxnReviewStatus reviewStatus;
     private String rawTxn;
+    private UUID statementId;     // FK to Statement
+    private String reviewRemarks;
+
+    // timestamps to draw lineage of updates done
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

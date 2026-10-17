@@ -13,6 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class InMemoryMappingRuleRepository implements MappingRuleRepository {
 
+    private final Map<String, MappingRule> idRules = new ConcurrentHashMap<>();
+    private final Map<String, MappingRule> nameRules = new ConcurrentHashMap<>();
+
     public InMemoryMappingRuleRepository(MappingConfig mappingConfig) {
 
         if (mappingConfig.counterpartyIdRules() != null) {
@@ -34,9 +37,6 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
         }
     }
 
-    private final Map<String, MappingRule> idRules = new ConcurrentHashMap<>();
-    private final Map<String, MappingRule> nameRules = new ConcurrentHashMap<>();
-
     @Override
     public Optional<MappingRule> findByCounterpartyId(String counterpartyId) {
         return Optional.ofNullable(idRules.get(normalize(counterpartyId)));
@@ -49,22 +49,24 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
 
     @Override
     public void saveByCounterpartyId(String counterpartyId, MappingRule rule) {
-        if (idRules.get(counterpartyId) != null) {
+        String cpId = normalize(counterpartyId);
+        if (idRules.get(cpId) != null) {
             log.error("rule already exists for counterparty id: {}", counterpartyId);
             return;
         }
         // Todo: validate if rule is proper
-        idRules.put(normalize(counterpartyId), rule);
+        idRules.put(cpId, rule);
     }
 
     @Override
     public void saveByCounterpartyName(String counterpartyName, MappingRule rule) {
-        if (nameRules.get(counterpartyName) != null) {
+        String cpName = normalize(counterpartyName);
+        if (nameRules.get(cpName) != null) {
             log.error("rule already exists for counterparty name: {}", counterpartyName);
             return;
         }
         // Todo: validate if rule is proper
-        nameRules.put(normalize(counterpartyName), rule);
+        nameRules.put(cpName, rule);
     }
 
     private String normalize(String key) {

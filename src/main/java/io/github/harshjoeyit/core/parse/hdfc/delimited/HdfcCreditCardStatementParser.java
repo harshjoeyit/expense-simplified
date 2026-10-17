@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Format: docs/statement-formats/HDFC_CC.txt
@@ -45,7 +46,7 @@ public class HdfcCreditCardStatementParser implements Parser {
     private static final Set<String> ELIGIBLE_CC_PAYMENT_DESCRIPTION = Set.of("CC PAYMENT", "CREDIT CARD PAYMENT");
 
     @Override
-    public List<NormalizedTransaction> parseDelimited(BufferedReader reader)
+    public List<NormalizedTransaction> parseDelimited(BufferedReader reader, String instrumentId, UUID statementId)
             throws IOException, IllegalArgumentException, UnsupportedNarrationException, MalformedNarrationException {
 
         // Since the statement CSV has a few more details before and after list of transaction
@@ -130,9 +131,12 @@ public class HdfcCreditCardStatementParser implements Parser {
                     TxnDirection direction = debitCredit.equals("Cr") ? TxnDirection.CREDIT : TxnDirection.DEBIT;
                     TxnType type = resolveTxnType(description, direction);
                     CounterpartyType counterpartyType = resolveCounterPartyType(type);
+                    LocalDateTime crTime = LocalDateTime.now();
 
                     // Depend on mapping - category, counterpartyId, instrumentId
                     NormalizedTransaction txn = NormalizedTransaction.builder()
+                            .statementId(statementId)
+                            .instrumentId(instrumentId)
                             .datetime(dateTime)
                             .valueDatetime(dateTime)
                             .amount(amount)
@@ -145,6 +149,8 @@ public class HdfcCreditCardStatementParser implements Parser {
                             .bankReference(null)
                             .reviewStatus(TxnReviewStatus.PENDING)          // Default = Pending
                             .rawTxn(record.toString())
+                            .createdAt(crTime)
+                            .updatedAt(crTime)
                             .build();
 
                     transactions.add(txn);
