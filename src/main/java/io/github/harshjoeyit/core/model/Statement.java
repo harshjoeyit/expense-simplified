@@ -14,12 +14,13 @@ public record Statement (
     FileType fileType,
     String filePath,
     String instrumentId,                // FK to Instrument
-    LocalDateTime uploadTime,
+    LocalDateTime createdAt,
     StatementReviewStatus reviewStatus  // e.g. PENDING_REVIEW, COMPLETED
 ){
     public static class StatementBuilder {
         private UUID id = UUID.randomUUID();
         private StatementReviewStatus reviewStatus = StatementReviewStatus.PENDING_REVIEW;
+        private LocalDateTime createdAt = LocalDateTime.now();
     }
 
     public Statement withMarkComplete() {
@@ -28,7 +29,7 @@ public record Statement (
                 .filePath(this.filePath)
                 .fileType(this.fileType)
                 .instrumentId(this.instrumentId)
-                .uploadTime(this.uploadTime)
+                .createdAt(this.createdAt)
                 .reviewStatus(StatementReviewStatus.COMPLETED)
                 .build();
     }

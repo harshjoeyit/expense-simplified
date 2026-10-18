@@ -17,4 +17,13 @@ public class SaveRule {
         COUNTERPARTY_ID,
         COUNTERPARTY_NAME
     }
+
+    @Override
+    public String toString() {
+        return "SaveRule{" +
+                "saveRuleByType=" + saveRuleByType +
+                ", id='" + id + '\'' +
+                ", autoReview=" + autoReview +
+                '}';
+    }
 }

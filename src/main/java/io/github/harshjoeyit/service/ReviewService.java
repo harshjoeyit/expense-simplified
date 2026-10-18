@@ -58,7 +58,7 @@ public class ReviewService {
     public void resolveTransaction(UUID txnId, TxnType txnType, TxnCategory txnCategory, String reviewRemark,
                                    SaveRule saveRule) throws InvalidTransactionId, InvalidStatementId, UnsupportedOperationException {
         if (txnId == null) {
-            throw new IllegalArgumentException("transaction Id cannot be null");
+            throw new InvalidTransactionId("transaction Id cannot be null");
         }
 
         NormalizedTransaction transaction = transactionRepository

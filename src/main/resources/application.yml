@@ -1,6 +1,8 @@
 spring:
   application:
     name: expense-simplified
+  main:
+    banner-mode: "off"          # turn off the spring banner on startup
   shell:
     interactive:
       enabled: true
@@ -12,3 +14,6 @@ spring:
 logging:
   file:
     name: app.log
+  threshold:
+    console: OFF                # turn off console log appender
+    file: INFO                  # log level info

@@ -68,7 +68,7 @@ public class InMemoryTransactionRepository implements TransactionRepository {
             transaction.setUpdatedAt(now);
             transactions.put(transaction.getId(), transaction);
         }
-        log.info("updated transaction: {}", transaction.getId());
+        log.debug("updated transaction: {}", transaction.getId());
     }
 
     @Override

@@ -54,7 +54,7 @@ public class StatementService {
                 .fileType(fileType)
                 .filePath(filepath)
                 .instrumentId(instrumentId)
-                .uploadTime(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         statementRepository.saveStatement(statement);
@@ -79,5 +79,24 @@ public class StatementService {
             transactionRepository.saveTransactions(enrichedTransactions);
             return enrichedTransactions;
         }
+    }
+
+    public record StatementSummary(
+            Statement statement,
+            int totalTransactions,
+            int pendingTransactions
+    ) {}
+
+    public List<StatementSummary> getStatementSummaries(int limit) {
+        int max = limit > 0 ? limit : 3;
+        return statementRepository.findAll()
+                .stream()
+                .limit(max)
+                .map(statement -> {
+                    int total = transactionRepository.findByStatementId(statement.id()).size();
+                    int pending = transactionRepository.findPendingReviewTransactionsByStatementId(statement.id()).size();
+                    return new StatementSummary(statement, total, pending);
+                })
+                .toList();
     }
 }

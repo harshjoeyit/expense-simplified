@@ -13,4 +13,5 @@ public enum TxnCategory {
     FUN_AND_PLAY,       // Sports, Bowling, other activities
     FLIGHT,
     INCOME,
+    MISCELLANEOUS
 }

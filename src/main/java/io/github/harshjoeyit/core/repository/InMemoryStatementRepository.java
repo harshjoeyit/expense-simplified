@@ -25,14 +25,22 @@ public class InMemoryStatementRepository implements StatementRepository {
     public Optional<Statement> findLatest() {
         return statements.values()
                 .stream()
-                .max(Comparator.comparing(Statement::uploadTime));
+                .max(Comparator.comparing(Statement::createdAt));
+    }
+
+    @Override
+    public List<Statement> findAll() {
+        return statements.values()
+                .stream()
+                .sorted(Comparator.comparing(Statement::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
     }
 
     @Override
     public void saveStatement(Statement statement) {
         if (statement != null && statement.id() != null) {
             this.statements.put(statement.id(), statement);
-            log.info("statement created: {}", statement);
+            log.info("statement upserted: {}", statement);
         }
     }
 }

@@ -17,6 +17,10 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
     private final Map<String, MappingRule> nameRules = new ConcurrentHashMap<>();
 
     public InMemoryMappingRuleRepository(MappingConfig mappingConfig) {
+        if (mappingConfig == null) {
+            log.warn("No mapping config");
+            return;
+        }
 
         if (mappingConfig.counterpartyIdRules() != null) {
             log.info("Loaded {}  Counterparty ID rules", mappingConfig.counterpartyIdRules().size());

@@ -11,6 +11,10 @@
 ## Setup
 1. Copy src/main/resources/mapping-rules.example.yml to src/main/resources/mapping-rules.yml with your rules
 2. Set logging level - export LOGGING_LEVEL_IO_GITHUB_HARSHJOEYIT=DEBUG
+   3. Suppress maven logs 
+      Pass the -q (quiet) flag to Maven:
+      mvn -q spring-boot:run
+   This tells Maven to suppress all [INFO] build logs. You will go straight to the expsim:> prompt
 
 ## Docs
 1. Scapia CC stmt pdf to csv: https://psibi.in/federal-cc-parser/

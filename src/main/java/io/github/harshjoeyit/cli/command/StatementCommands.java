@@ -1,9 +1,9 @@
 package io.github.harshjoeyit.cli.command;
 
-import io.github.harshjoeyit.core.model.FileType;
-import io.github.harshjoeyit.core.model.NormalizedTransaction;
-import io.github.harshjoeyit.core.model.Statement;
-import io.github.harshjoeyit.core.model.TxnCategory;
+import io.github.harshjoeyit.core.exception.InvalidMappingRule;
+import io.github.harshjoeyit.core.exception.InvalidStatementId;
+import io.github.harshjoeyit.core.exception.InvalidTransactionId;
+import io.github.harshjoeyit.core.model.*;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
 import io.github.harshjoeyit.service.InstrumentService;
@@ -17,6 +17,7 @@ import org.jline.utils.InfoCmp;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 import org.springframework.shell.component.SingleItemSelector;
+import org.springframework.shell.component.StringInput;
 import org.springframework.shell.component.support.SelectorItem;
 import org.springframework.shell.standard.AbstractShellComponent;
 import org.springframework.shell.table.ArrayTableModel;
@@ -46,10 +47,21 @@ public class StatementCommands extends AbstractShellComponent {
         this.reviewService = reviewService;
     }
 
-    /**
-     * Todo: command to view statements (most recent at the top), can pass -n flag to limit the results. Default top 3.
-     *  User can use this to find out statement Id (required by review command) and other details
-     */
+    @Command(
+            command = "statements",
+            description = "View uploaded statements (most recent first)"
+    )
+    public String listStatements(
+            @Option(longNames = "limit", shortNames = 'n', defaultValue = "3", description = "Max statements to display (default: 3)") int limit
+    ) {
+        List<StatementService.StatementSummary> summaries = statementService.getStatementSummaries(limit);
+
+        if (summaries.isEmpty()) {
+            return "No statements found. Use 'parse' command to import a statement.";
+        }
+
+        return renderStatementsTable(summaries);
+    }
 
     @Command(
             command = "parse",
@@ -115,13 +127,10 @@ public class StatementCommands extends AbstractShellComponent {
             BindingReader bindingReader = new BindingReader(getTerminal().reader());
             KeyMap<ReviewNavAction> keyMap = buildReviewKeyMap();
 
-            // Convert TxnType to a List of Strings
-            List<SelectorItem<String>> txnTypes = Arrays.stream(TxnType.values())
+            List<SelectorItem<String>> txnTypeOptions = Arrays.stream(TxnType.values())
                     .map(txnType -> SelectorItem.of(txnType.name(), txnType.name()))
                     .toList();
-
-            // Convert TxnCategory to a List of Strings
-            List<SelectorItem<String>> txnCategories = Arrays.stream(TxnCategory.values())
+            List<SelectorItem<String>> txnCategoryOptions = Arrays.stream(TxnCategory.values())
                     .map(txnCategory -> SelectorItem.of(txnCategory.name(), txnCategory.name()))
                     .toList();
 
@@ -134,13 +143,12 @@ public class StatementCommands extends AbstractShellComponent {
 
                 // Show transaction snapshot
                 writer.println(String.format("%n[%d/%d] %s | %s | ₹%.2f (%s) | %s | %s | %s",
-                        i + 1, transactions.size(), readbFriendlyDateTime(txn.getDatetime()), txn.getMode(),
+                        i + 1, transactions.size(), readFriendlyDateTime(txn.getDatetime()), txn.getMode(),
                         txn.getAmount(), dir, counterparty, txn.getUserComment(), txn.getType()));
                 writer.flush();
 
                 // read navigation input
                 ReviewNavAction action = readNavAction(bindingReader, keyMap);
-//                writer.println();  // next line after keypress
 
                 if (action == ReviewNavAction.QUIT) {
                     writer.println("✓ Progress saved");
@@ -171,54 +179,81 @@ public class StatementCommands extends AbstractShellComponent {
                 }
 
                 if (action == ReviewNavAction.CATEGORIZE) {
-                    Optional<String> selectedTxnType = promptSingleItem("Select type:", txnTypes, 6);
-                    selectedTxnType.ifPresent(txnType -> {
-                        // Another selector for categories if needed
+                    TxnType txnType = null;
+                    TxnCategory txnCategory = null;
+                    String reviewRemarks;
+                    SaveRule saveRule;
+
+                    // Txn type
+                    Optional<String> selectedTxnType = promptSelectSingleItem(
+                            "Select type:", txnTypeOptions, 5);
+                    if (selectedTxnType.isPresent()) {
+                        txnType = TxnType.valueOf(selectedTxnType.get());
+
+                        // Category
                         if (requiresCategory(txnType)) {
-                            Optional<String> selectedTxnCategory = promptSingleItem("Select category:", txnCategories, 6);
-                            selectedTxnCategory.ifPresent(txnCategory -> reviewService.resolveTransaction(
-                                    txn.getId(),
-                                    TxnType.valueOf(txnType),
-                                    TxnCategory.valueOf(txnCategory),
-                                    null,
-                                    null
-                            ));
-                            return;
+                            Optional<String> selectedTxnCategory = promptSelectSingleItem(
+                                    "Select category:", txnCategoryOptions, 5);
+                            if (selectedTxnCategory.isPresent()) {
+                                txnCategory = TxnCategory.valueOf(selectedTxnCategory.get());
+                            }
                         }
+                    }
 
-                        // TxnCategory remains null
-                        reviewService.resolveTransaction(
-                                txn.getId(),
-                                TxnType.valueOf(txnType),
-                                null,
-                                null,
-                                null
-                        );
-                    });
+                    // Review remarks
+                    reviewRemarks = promptString("Review remarks (optional):", null).orElse(null);
+                    // Save rule for future (optional)
+                    saveRule = promptSaveRule(txn).orElse(null);
 
-                    writer.println("✓ Resolved");
-                    writer.flush();
-
-                    // next transaction
-                    i++;
+                    try {
+                        //  Resolve transaction
+                        reviewService.resolveTransaction(txn.getId(), txnType, txnCategory, reviewRemarks, saveRule);
+                        writer.println("✓ Resolved");
+                    } catch (InvalidTransactionId e) {
+                        writer.println("⚠ Invalid transaction (skipping): " + e.getMessage());
+                        log.warn("Invalid transaction {}", txn.getId(), e);
+                    } catch (InvalidStatementId e) {
+                        writer.println("⚠ Invalid statement (skipping): " + e.getMessage());
+                        log.warn("Invalid statement id {} for {}", txn.getStatementId(), txn.getId(), e);
+                    } catch (InvalidMappingRule e) {
+                        writer.println("⚠ Invalid mapping rule (skipping): " + e.getMessage());
+                        log.warn("Invalid mapping id {}", txn.getId(), e);
+                    } catch (UnsupportedOperationException e) {
+                        writer.println("⚠ Invalid rule: " + e.getMessage());
+                        log.warn("Unsupported operation {}", txn.getId(), e);
+                    } catch (Exception e) {
+                        writer.println("⚠ Unexpected error: " + e.getMessage());
+                        log.warn("Unexpected error {}", txn.getId(), e);
+                    } finally {
+                        writer.flush();
+                        i++; // next transaction
+                    }
                 }
             }
 
-            writer.println("\n✓ Review completed");
-            writer.flush();
-        } catch (Exception e) {
+            if (i == transactions.size()) {
+                writer.println("\n✓ Review completed");
+            } else  {
+                writer.println("\n ⌛ [" + (transactions.size() - i) + "/" + transactions.size() +
+                        "] transactions pending to be reviewed");
+            }
+        } catch (NoSuchElementException e) {
+            writer.println("Statement not found. ");
             log.error("Failed to review", e);
+        } catch (Exception e) {
             writer.println("Failed to review. Error: " + e.getMessage());
+            log.error("Failed to review", e);
+        } finally {
             writer.flush();
         }
     }
 
-    private boolean requiresCategory(String txnType) {
-        return TxnType.valueOf(txnType) == TxnType.PURCHASE
-                || TxnType.valueOf(txnType) == TxnType.REFUND;
+    private boolean requiresCategory(TxnType txnType) {
+        return txnType == TxnType.PURCHASE
+                || txnType == TxnType.REFUND;
     }
 
-    private String readbFriendlyDateTime(LocalDateTime dateTime) {
+    private String readFriendlyDateTime(LocalDateTime dateTime) {
         // 'd' = day of month, 'MMM' = short month name, 'E' = short day of the week
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d MMM (E)", Locale.ENGLISH);
         // Format the date
@@ -230,7 +265,7 @@ public class StatementCommands extends AbstractShellComponent {
     /**
      * Helper method reusing AbstractShellComponent getters
      */
-    private <T> Optional<T> promptSingleItem(String title, List<SelectorItem<T>> items, int maxItems) {
+    private <T> Optional<T> promptSelectSingleItem(String title, List<SelectorItem<T>> items, int maxItems) {
         SingleItemSelector<T, SelectorItem<T>> component = new SingleItemSelector<>(
                 getTerminal(),
                 items,
@@ -248,6 +283,65 @@ public class StatementCommands extends AbstractShellComponent {
                 component.run(SingleItemSelector.SingleItemSelectorContext.empty());
 
         return context.getResultItem().map(SelectorItem::getItem);
+    }
+
+    private Optional<String> promptString(String title, String defaultValue) {
+        StringInput component = new StringInput(getTerminal(), title, defaultValue);
+        component.setResourceLoader(getResourceLoader());
+        component.setTemplateExecutor(getTemplateExecutor());
+
+        StringInput.StringInputContext context = component.run(StringInput.StringInputContext.empty());
+        String result = context.getResultValue();
+        return Optional.ofNullable(result).filter(s -> !s.isBlank());
+    }
+
+    private Optional<SaveRule> promptSaveRule(NormalizedTransaction txn) {
+        List<SelectorItem<String>> options = new ArrayList<>();
+
+        // 1. Don't save
+        options.add(SelectorItem.of("Don't save rule", "NONE"));
+
+        // 2. Save by Counterparty ID
+        boolean hasCounterpartyId = txn.getCounterpartyId() != null && !txn.getCounterpartyId().isBlank();
+        if (hasCounterpartyId) {
+            options.add(SelectorItem.of("Save by Counterparty ID ("
+                    + txn.getCounterpartyId() + ")", "BY_ID" + txn.getCounterpartyId()));
+        }
+
+        // 3. Save by Counterparty Name
+        boolean hasCounterpartyName = txn.getCounterparty() != null && !txn.getCounterparty().isBlank();
+        if (hasCounterpartyName) {
+            options.add(SelectorItem.of("Save by Counterparty Name ("
+                    + txn.getCounterparty() + ")", "BY_NAME: " + txn.getCounterparty()));
+        }
+
+        // If neither counterparty name nor Id exists, skip rule prompt entirely
+        if (options.size() == 1) {
+            return Optional.empty();
+        }
+
+        Optional<String> selected = promptSelectSingleItem("Save rule for future transactions?", options, 5);
+        if (selected.isEmpty() || "NONE".equals(selected.get())) {
+            return Optional.empty();
+        }
+
+        if (selected.get().startsWith("BY_ID")) {
+            return Optional.of(SaveRule.builder()
+                    .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_ID)
+                    .id(txn.getCounterpartyId())
+                    .autoReview(true)
+                    .build());
+        }
+
+        if (selected.get().startsWith("BY_NAME")) {
+            return Optional.of(SaveRule.builder()
+                    .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
+                    .id(txn.getCounterparty())
+                    .autoReview(true)
+                    .build());
+        }
+
+        return Optional.empty();
     }
 
     private enum ReviewNavAction {
@@ -353,9 +447,50 @@ public class StatementCommands extends AbstractShellComponent {
         // Render with max terminal width (e.g., 120 columns)
         String renderedTable = tableBuilder.build().render(140);
 
-        String statementId = !transactions.isEmpty() ? transactions.get(0).getStatementId().toString() : null;
+        UUID statementId = !transactions.isEmpty() ? transactions.get(0).getStatementId() : null;
 
-        return String.format("%nParsed %d transactions from %s (%s):%n%n%s%n%s%n",
-                transactions.size(), filename, type, statementId, renderedTable);
+//        return String.format("%nParsed %d transactions from %s (%s):%n%n%s%n%s%n",
+//                transactions.size(), filename, type, statementId, renderedTable);
+
+        int total = transactions.size();
+        int pendingReview = reviewService.findPendingReviewTransaction(statementId).size();
+
+        return String.format("%nStatementId: %s%nParsed %d transactions from %s (%s).%n[%s/%s] need review %n",
+                statementId, total, filename, type, pendingReview, total);
+    }
+
+    private String renderStatementsTable(List<StatementService.StatementSummary> summaries) {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        String[][] data = new String[summaries.size() + 1][6];
+        data[0] = new String[]{"Statement ID", "Instrument", "Uploaded At", "File", "Status", "Review Progress"};
+
+        for (int i = 0; i < summaries.size(); i++) {
+            StatementService.StatementSummary summary = summaries.get(i);
+            Statement stmt = summary.statement();
+
+            String createdAtStr = stmt.createdAt() != null ? stmt.createdAt().format(dtf) : "-";
+            String filename = stmt.filePath() != null ? new File(stmt.filePath()).getName() : "-";
+            String status = stmt.reviewStatus() != null ? stmt.reviewStatus().name() : "-";
+            String progress = summary.pendingTransactions() == 0
+                    ? "✓ Completed (" + summary.totalTransactions() + ")"
+                    : summary.pendingTransactions() + " / " + summary.totalTransactions() + " pending";
+
+            data[i + 1] = new String[]{
+                    stmt.id() != null ? stmt.id().toString() : "-",
+                    stmt.instrumentId() != null ? stmt.instrumentId() : "-",
+                    createdAtStr,
+                    filename,
+                    status,
+                    progress
+            };
+        }
+
+        TableModel model = new ArrayTableModel(data);
+        TableBuilder tableBuilder = new TableBuilder(model);
+        tableBuilder.addFullBorder(BorderStyle.fancy_light);
+
+        return String.format("%nStatements (%d shown):%n%s%n",
+                summaries.size(), tableBuilder.build().render(140));
     }
 }
