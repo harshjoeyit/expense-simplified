@@ -1,0 +1,68 @@
+output_dir: "./export"                      # Todo: allow user to override this, or allow choosing directory when exporting
+profiles:
+  default:
+    date_format: "yyyy-MM-dd"
+    multi:                                  # multi-tracker profile - one export each for purchase, investment, income
+      purchase:
+        columns:
+          # Key: User-Defined. CSV Column Header
+          # Value: Dictates which piece of data to pull from Transaction.
+          #     Canonical tokens: title, amount, date, category, source, id, direction, instrument, statement_id, remarks, reference, mode, type
+
+          "Title": "title"                  # CSV Header = "Title",              Data = title fallback logic
+          "Amount": "amount"                # CSV Header = "Amount",             Data = txn.getAmount()
+          "Date": "date"                    # CSV Header = "Date",               Data = txn.getDatetime()
+          "Tags": "category"                # CSV Header = "Tags",               Data = mapped category
+          "Txn Id": "id"                    # CSV Header = "Txn ID",             Data = txn.getId()
+      income:
+        columns:
+          "Title": "title"
+          "Date": "date"
+          "Amount": "amount"
+          "Source": "source"
+          "Txn Id": "id"
+      investment:
+        columns:
+          "Title": "title"
+          "Amount": "amount"
+          "Tags": "source"
+          "Last investment on": "date"
+      lend_or_borrowed:
+        columns:
+          "Title": "title"
+          "Amount": "amount"
+          "Date": "date"
+          "Source": "source"
+          "Type": "type"
+          "Txn Id": "id"
+    category_mapping:                       # category_mapping maps TxnCategory to user defined categories
+      FOOD: "Food"
+      SHOPPING: "Shopping"
+      TRAVEL: "Travel"
+      RENT: "Rent"
+      DINE_OUT_OR_ORDER: "Order/Dineout"
+      UTILITIES: "Daily Needs"
+      INSURANCE: "Insurance"
+      FUN_AND_PLAY: "Fun & Chill"
+      SUBSCRIPTION: "Subscription"
+      FLIGHT: "Flights"
+      PARTY: "Party"
+      GIFT: "Gift"
+      MOVIE: "Movie"
+      MISCELLANEOUS: "Miscellanous"
+
+  # Sample profile for consolidated tracker
+  custom1:
+    date_format: "yyyy-MM-dd"
+    single:
+      columns:
+        "Title": "title"
+        "Amount": "amount"                # -ve or +ve based on direction (income is +ve, purchases are -ve)
+        "Date": "date"
+        "Tags": "category"
+        "Txn Id": "id"
+    # on ommission category_mapping is Pascal case of TxnCategory
+
+# Flexibility:
+# You rename a column in Notion: If you change "Tags" to "Category" in Notion, you only change the key in export-profile.yml. Zero Java code changes.
+# You rearrange columns: If you want Date first and Title second, just swap their order in export-profile.yml. LinkedHashMap preserves that order automatically.

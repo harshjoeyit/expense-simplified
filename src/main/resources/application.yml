@@ -10,6 +10,7 @@ spring:
     import:
       - optional:classpath:mapping-rules.yml
       - optional:classpath:instruments.yml
+      - optional:classpath:export-profile.yml
 
 logging:
   file:

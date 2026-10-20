@@ -10,6 +10,7 @@ public interface TransactionRepository {
     Optional<NormalizedTransaction> findById(UUID id);
     List<NormalizedTransaction> findByStatementId(UUID statementId);
     List<NormalizedTransaction> findPendingReviewTransactionsByStatementId(UUID statementId);
+    List<NormalizedTransaction> findReviewedTransactionsByStatementId(UUID statementId);
     void saveTransaction(NormalizedTransaction transaction);
 
     default void saveTransactions(List<NormalizedTransaction> transactions) {

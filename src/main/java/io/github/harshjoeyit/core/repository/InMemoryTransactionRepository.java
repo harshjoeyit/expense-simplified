@@ -46,6 +46,21 @@ public class InMemoryTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<NormalizedTransaction> findReviewedTransactionsByStatementId(UUID statementId) {
+        List<NormalizedTransaction> pending = transactions.values()
+                .stream()
+                .filter(transaction -> Objects.equals(transaction.getStatementId(), statementId)
+                        && (transaction.getReviewStatus().equals(TxnReviewStatus.AUTO_REVIEWED)
+                            || transaction.getReviewStatus().equals(TxnReviewStatus.MANUAL_REVIEWED)))
+                .sorted(Comparator.comparing(NormalizedTransaction::getDatetime))
+                .toList();
+
+        log.debug("found {} reviewed transactions for statement: {}", pending.size(), statementId);
+
+        return pending;
+    }
+
+    @Override
     public void saveTransaction(NormalizedTransaction transaction) {
         if (transaction == null || transaction.getId() == null) {
             log.warn("Cannot save a null or save transaction without Id");

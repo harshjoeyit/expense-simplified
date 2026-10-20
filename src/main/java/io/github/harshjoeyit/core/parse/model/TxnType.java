@@ -8,8 +8,10 @@ public enum TxnType {
     REFUND,                         // Same as PURCHASE
     CREDIT_CARD_BILL_PAYMENT,       // N/A
     INTEREST,                       // Category: INCOME
-    LOAN,                           // N/A
-    LOAN_REPAYMENT,                 // N/A
+    LEND,                           // N/A
+    LEND_REPAYMENT,                 // N/A
+    BORROW,                         // N/A
+    BORROW_REPAYMENT,               // N/A
     SELF_ACCOUNT_TRANSFER,          // N/A
     INVESTMENT,                     // N/A
     SALARY,                         // Category: INCOME

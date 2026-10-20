@@ -6,6 +6,8 @@ import io.github.harshjoeyit.core.exception.InvalidTransactionId;
 import io.github.harshjoeyit.core.model.*;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
+import io.github.harshjoeyit.export.model.CsvExportInput;
+import io.github.harshjoeyit.export.service.CsvExportService;
 import io.github.harshjoeyit.service.InstrumentService;
 import io.github.harshjoeyit.service.ReviewService;
 import io.github.harshjoeyit.service.StatementService;
@@ -26,6 +28,7 @@ import org.springframework.shell.table.TableBuilder;
 import org.springframework.shell.table.TableModel;
 
 import java.io.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -37,14 +40,17 @@ public class StatementCommands extends AbstractShellComponent {
     private final StatementService statementService;
     private final InstrumentService instrumentService;
     private final ReviewService reviewService;
+    private final CsvExportService csvExportService;
 
     public StatementCommands(
             StatementService statementService,
             InstrumentService instrumentService,
-            ReviewService reviewService) {
+            ReviewService reviewService,
+            CsvExportService csvExportService) {
         this.statementService = statementService;
         this.instrumentService = instrumentService;
         this.reviewService = reviewService;
+        this.csvExportService = csvExportService;
     }
 
     @Command(
@@ -245,6 +251,39 @@ public class StatementCommands extends AbstractShellComponent {
             log.error("Failed to review", e);
         } finally {
             writer.flush();
+        }
+    }
+
+    @Command(
+            command = "export",
+            description = "Export reviewed transactions into CSV"
+    )
+    public String export(
+            @Option(longNames = "statement", shortNames = 's', description = "Statement ID (Ex - 263672ac-6db2-4d00-b82c-fba61feb1df9)") UUID statementId,
+            @Option(longNames = "from", shortNames = 'f', description = "Period start date (YYYY-MM-DD)") LocalDate periodStartDate,
+            @Option(longNames = "to", shortNames = 't', description = "Period end date (YYYY-MM-DD)") LocalDate periodEndDate,
+            @Option(longNames = "profile", shortNames = 'p', defaultValue = "default", description = "Export profile name (e.g. default, notion)") String profile,
+            @Option(longNames = "output-dir", shortNames = 'o', description = "Target directory (default: ./export)") String outputDir
+    ) {
+        if (statementId == null && (periodStartDate == null || periodEndDate == null)) {
+            // need at least a statement or time window
+            return "Either statement Id or time window [from, to] required";
+        }
+
+        CsvExportInput input = CsvExportInput.builder()
+                .statementId(statementId)
+                .periodStartDate(periodStartDate)
+                .periodEndDate(periodEndDate)
+                .build();
+
+        try {
+            csvExportService.export(input, profile, outputDir);
+            return "✓ Export completed successfully to " + (outputDir != null ? outputDir : "./export");
+        } catch (IllegalArgumentException e) {
+            return "Export failed: " + e.getMessage();
+        } catch (Exception e) {
+            log.error("Export failed", e);
+            return "Export failed: " + e.getMessage();
         }
     }
 
