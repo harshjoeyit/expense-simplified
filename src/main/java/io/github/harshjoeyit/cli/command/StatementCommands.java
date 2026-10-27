@@ -11,6 +11,13 @@ import io.github.harshjoeyit.export.service.CsvExportService;
 import io.github.harshjoeyit.service.InstrumentService;
 import io.github.harshjoeyit.service.ReviewService;
 import io.github.harshjoeyit.service.StatementService;
+import io.github.harshjoeyit.split.InvalidSplitException;
+import io.github.harshjoeyit.split.config.FriendConfig;
+import io.github.harshjoeyit.split.model.Friend;
+import io.github.harshjoeyit.split.model.SplitInput;
+import io.github.harshjoeyit.split.model.SplitStrategy;
+import io.github.harshjoeyit.split.model.TransactionSplit;
+import io.github.harshjoeyit.split.service.SplitService;
 import lombok.extern.slf4j.Slf4j;
 import org.jline.keymap.BindingReader;
 import org.jline.keymap.KeyMap;
@@ -18,6 +25,7 @@ import org.jline.terminal.Attributes;
 import org.jline.utils.InfoCmp;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
+import org.springframework.shell.component.MultiItemSelector;
 import org.springframework.shell.component.SingleItemSelector;
 import org.springframework.shell.component.StringInput;
 import org.springframework.shell.component.support.SelectorItem;
@@ -32,6 +40,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
+
+import static java.util.stream.Collectors.toMap;
 
 @Slf4j
 @Command(group = "Statement Parsing Commands")
@@ -41,16 +52,22 @@ public class StatementCommands extends AbstractShellComponent {
     private final InstrumentService instrumentService;
     private final ReviewService reviewService;
     private final CsvExportService csvExportService;
+    private final SplitService splitService;
+    private final FriendConfig friendConfig;
 
     public StatementCommands(
             StatementService statementService,
             InstrumentService instrumentService,
             ReviewService reviewService,
-            CsvExportService csvExportService) {
+            CsvExportService csvExportService,
+            SplitService splitService,
+            FriendConfig friendConfig) {
         this.statementService = statementService;
         this.instrumentService = instrumentService;
         this.reviewService = reviewService;
         this.csvExportService = csvExportService;
+        this.splitService = splitService;
+        this.friendConfig = friendConfig;
     }
 
     @Command(
@@ -145,12 +162,28 @@ public class StatementCommands extends AbstractShellComponent {
                 NormalizedTransaction txn = transactions.get(i);
 
                 String dir = txn.getDirection() == TxnDirection.CREDIT ? "Cr" : "Dr";
-                String counterparty = txn.getCounterparty() + " (" + txn.getCounterpartyId() + ")";
+
+                String counterpartyName = (txn.getCounterparty() != null && !txn.getCounterparty().isBlank())
+                        ? txn.getCounterparty()
+                        : "-";
+                String counterparty = (txn.getCounterpartyId() != null && !txn.getCounterpartyId().isBlank())
+                        ? counterpartyName + " (" + txn.getCounterpartyId() + ")"
+                        : counterpartyName;
+
+                String comment = (txn.getUserComment() != null && !txn.getUserComment().isBlank())
+                        ? txn.getUserComment()
+                        : "-";
+
+                String shareInfo = (txn.getMyShare() != null && !Objects.equals(txn.getMyShare(), txn.getAmount()))
+                        ? String.format(" | My Share: ₹%.2f", txn.getMyShare())
+                        : "";
 
                 // Show transaction snapshot
-                writer.println(String.format("%n[%d/%d] %s | %s | ₹%.2f (%s) | %s | %s | %s",
+                writer.println(String.format("%n[%d/%d] %s | %s | ₹%.2f (%s%s) | %s | %s | %s",
                         i + 1, transactions.size(), readFriendlyDateTime(txn.getDatetime()), txn.getMode(),
-                        txn.getAmount(), dir, counterparty, txn.getUserComment(), txn.getType()));
+                        txn.getAmount(), dir, shareInfo, counterparty, comment, txn.getType()));
+                // Tooltip for user
+                writer.println("[c] Categorize  [s] Split  [n/→] Next  [p/←] Prev  [q] Quit");
                 writer.flush();
 
                 // read navigation input
@@ -182,6 +215,11 @@ public class StatementCommands extends AbstractShellComponent {
                         writer.flush();
                     }
                     continue;
+                }
+
+                if (action == ReviewNavAction.SPLIT) {
+                    promptSplit(txn);
+                    continue; // stay on current transaction
                 }
 
                 if (action == ReviewNavAction.CATEGORIZE) {
@@ -301,9 +339,143 @@ public class StatementCommands extends AbstractShellComponent {
         return readableDate;
     }
 
-    /**
-     * Helper method reusing AbstractShellComponent getters
-     */
+    private void promptSplit(NormalizedTransaction txn) {
+        PrintWriter writer = getTerminal().writer();
+        if (txn.getDirection().equals(TxnDirection.CREDIT)) {
+            writer.println("⚠ Cannot split income/credit transaction");
+            getTerminal().flush();
+            return;
+        }
+
+        if (friendConfig == null || friendConfig.friends() == null || friendConfig.friends().isEmpty()) {
+            writer.println("⚠ No friends configured in friends.yml");
+            getTerminal().flush();
+            return;
+        }
+
+        // Select participants
+        List<SelectorItem<Friend>> friendOptions = new ArrayList<>();
+        friendOptions.add(SelectorItem.of("Myself", Friend.SELF, true, true));
+        for (Friend friend : friendConfig.friends()) {
+            friendOptions.add(SelectorItem.of(friend.name(), friend));
+        }
+
+        List<Friend> selectedFriends = promptSelectMultiItems("Split with (space to toggle): ", friendOptions);
+        boolean hasFriendOtherThanSelf = selectedFriends.stream().anyMatch(f -> !f.isSelf());
+        if (!hasFriendOtherThanSelf) {
+            writer.println("⚠ Need to select at least one friend (other than self) to split");
+            getTerminal().flush();
+            return;
+        }
+
+        if (selectedFriends.size() == 1 && selectedFriends.get(0).equals(Friend.SELF)) {
+            writer.println("⚠ Need to select at least one friend to split");
+            getTerminal().flush();
+            return;
+        }
+        Map<Friend, Double> valuePerFriend
+                = selectedFriends.stream().collect(toMap(Function.identity(), k -> 0.0));
+
+        // select strategy - single
+        List<SelectorItem<SplitStrategy>> splitStrategyOptions = new ArrayList<>();
+        for (SplitStrategy strategy: SplitStrategy.values()) {
+            splitStrategyOptions.add(SelectorItem.of(strategy.name(), strategy));
+        }
+
+        Optional<SplitStrategy> optnSelectedSplitStrategy = promptSelectSingleItem("Split By:", splitStrategyOptions, 5);
+        if (optnSelectedSplitStrategy.isEmpty()) {
+            writer.println("Split cancelled");
+            getTerminal().flush();
+            return;
+        }
+
+        SplitStrategy selectedSplitStrategy = optnSelectedSplitStrategy.get();
+
+        // if strategy <> EQUAL, input amount/share/perct for each friend
+        if (!selectedSplitStrategy.equals(SplitStrategy.EQUAL)) {
+            double remaining = selectedSplitStrategy == SplitStrategy.PERCENT
+                    ? 100.0
+                    : txn.getAmount();
+
+            // Prompt input for each friend
+            for (Friend friend : selectedFriends) {
+                String unit = switch (selectedSplitStrategy) {
+                    case PERCENT -> " (%)";
+                    case SHARE -> " (shares)";
+                    case CUSTOM -> " (₹)";
+                    default -> "";
+                };
+
+                String defaultValue;
+                if (selectedSplitStrategy == SplitStrategy.SHARE) {
+                    defaultValue = "1";
+                } else {
+                    double rem = Math.max(0.0, remaining);
+                    defaultValue = (rem % 1 == 0)
+                            ? String.format(Locale.ROOT, "%.0f", rem)
+                            : String.format(Locale.ROOT, "%.2f", rem);
+                }
+
+                Optional<String> optnValue = promptString(friend.name() + unit + ":", defaultValue);
+                if (optnValue.isPresent()) {
+                     try {
+                         double value = Double.parseDouble(optnValue.get().trim());
+                         valuePerFriend.put(friend, value);
+                         remaining -= value;
+                     } catch (NumberFormatException e) {
+                         writer.println("⚠ Invalid number: " + optnValue.get());
+                         getTerminal().flush();
+                         return;
+                     }
+                 }
+            }
+        }
+
+        // Save split
+        SplitInput splitInput = SplitInput.builder()
+                .amount(txn.getAmount())
+                .strategy(selectedSplitStrategy)
+                .valuePerFriend(valuePerFriend)
+                .build();
+
+        try {
+            List<TransactionSplit> splits = splitService.split(txn.getId(), splitInput);
+            writer.println(String.format("%n✓ Split saved successfully!"));
+            writer.println(String.format("  • Your share: ₹%.2f", txn.getMyShare()));
+            for (TransactionSplit split : splits) {
+                writer.println(String.format("  • %s owes: ₹%.2f", split.friendName(), split.amount()));
+            }
+        } catch (InvalidSplitException e) {
+            writer.println("⚠ Split failed: " + e.getMessage());
+        } catch (Exception e) {
+            writer.println("⚠ Unexpected error while splitting: " + e.getMessage());
+            log.error("Failed to split transaction {}", txn.getId(), e);
+        } finally {
+            getTerminal().flush();
+        }
+    }
+
+    private <T> List<T> promptSelectMultiItems(String title, List<SelectorItem<T>> items) {
+        MultiItemSelector<T, SelectorItem<T>> component = new MultiItemSelector<>(
+                getTerminal(),
+                items,
+                title,
+                null
+        );
+        component.setResourceLoader(getResourceLoader());
+        component.setTemplateExecutor(getTemplateExecutor());
+
+        MultiItemSelector.MultiItemSelectorContext<T, SelectorItem<T>> context =
+                component.run(MultiItemSelector.MultiItemSelectorContext.empty());
+
+        return context.getResultItems() != null
+                ? context.getResultItems().stream().map(SelectorItem::getItem).toList()
+                : List.of();
+    }
+
+        /**
+         * Helper method reusing AbstractShellComponent getters
+         */
     private <T> Optional<T> promptSelectSingleItem(String title, List<SelectorItem<T>> items, int maxItems) {
         SingleItemSelector<T, SelectorItem<T>> component = new SingleItemSelector<>(
                 getTerminal(),
@@ -387,7 +559,8 @@ public class StatementCommands extends AbstractShellComponent {
         CATEGORIZE,
         NEXT,
         PREV,
-        QUIT
+        QUIT,
+        SPLIT
     }
 
     /**
@@ -415,6 +588,9 @@ public class StatementCommands extends AbstractShellComponent {
 
         // Quit: 'q', 'Q', Esc
         keyMap.bind(ReviewNavAction.QUIT, "q", "Q", "\033");
+
+        // Split: 's', 'S'
+        keyMap.bind(ReviewNavAction.SPLIT, "s", "S");
 
         return keyMap;
     }

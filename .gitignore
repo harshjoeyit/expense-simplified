@@ -47,6 +47,7 @@ docs/private/
 
 src/main/resources/mapping-rules.yml
 src/main/resources/instruments.yml
+src/main/resources/friends.yml
 
 /exports/
 /export/

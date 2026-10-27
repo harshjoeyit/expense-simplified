@@ -13,7 +13,7 @@ import java.util.UUID;
  * Canonical normalized representation of a financial transaction across all sources.
  */
 @Data
-@Builder(toBuilder = true)
+@Builder(toBuilder = true, buildMethodName = "buildInternal")
 public class NormalizedTransaction {
 
     @Builder.Default
@@ -42,7 +42,26 @@ public class NormalizedTransaction {
     private UUID statementId;     // FK to Statement
     private String reviewRemarks;
 
+    /**
+     * User's individual share of the transaction if split (always >= 0).
+     * If not split, defaults to {@link #amount}.
+     */
+    private Double myShare;
+
     // timestamps to draw lineage of updates done
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public Double getMyShare() {
+        return myShare != null ? myShare : amount;
+    }
+
+    public static class NormalizedTransactionBuilder {
+        public NormalizedTransaction build() {
+            if (this.myShare == null) {
+                this.myShare = this.amount;
+            }
+            return buildInternal();
+        }
+    }
 }

@@ -11,6 +11,7 @@ spring:
       - optional:classpath:mapping-rules.yml
       - optional:classpath:instruments.yml
       - optional:classpath:export-profile.yml
+      - optional:classpath:friends.yml
 
 logging:
   file:
