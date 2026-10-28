@@ -182,7 +182,6 @@ class ReviewServiceTest {
                 .counterpartyId("CP-123")
                 .statementId(statementId)
                 .category(TxnCategory.FOOD)
-                .type(TxnType.UNKNOWN)
                 .reviewStatus(TxnReviewStatus.PENDING)
                 .build();
 

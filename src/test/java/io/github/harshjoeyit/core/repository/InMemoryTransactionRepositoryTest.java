@@ -46,7 +46,7 @@ class InMemoryTransactionRepositoryTest {
     void saveTransaction_existingTransaction_updatesFieldsAndPreservesCreatedAt() throws InterruptedException {
         NormalizedTransaction txn = NormalizedTransaction.builder()
                 .amount(100.0)
-                .type(TxnType.UNKNOWN)
+                .type(TxnType.PURCHASE)
                 .reviewStatus(TxnReviewStatus.PENDING)
                 .build();
 

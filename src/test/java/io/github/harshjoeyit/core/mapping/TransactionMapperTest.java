@@ -107,7 +107,7 @@ class TransactionMapperTest {
                         NormalizedTransaction::getReviewStatus,
                         NormalizedTransaction::getAmount
                 )
-                .containsExactly(null, TxnType.UNKNOWN, TxnReviewStatus.PENDING, 250.0);
+                .containsExactly(null, null, TxnReviewStatus.PENDING, 250.0);
 
         assertThat(mappedTransactions.get(1))
                 .extracting(
@@ -116,7 +116,7 @@ class TransactionMapperTest {
                         NormalizedTransaction::getReviewStatus,
                         NormalizedTransaction::getAmount
                 )
-                .containsExactly(null, TxnType.UNKNOWN, TxnReviewStatus.PENDING, 100.0);
+                .containsExactly(null, null, TxnReviewStatus.PENDING, 100.0);
 
         verify(mappingRuleRepository).findByCounterpartyId("unknown@icici");
         verify(mappingRuleRepository).findByCounterpartyName("Unknown Seller");
@@ -223,7 +223,6 @@ class TransactionMapperTest {
                 .counterpartyId("")
                 .amount(50.0)
                 .reviewStatus(TxnReviewStatus.PENDING)
-                .type(TxnType.UNKNOWN)
                 .build();
 
         List<NormalizedTransaction> mapped = transactionMapper.enrich(List.of(blankTxn));
@@ -239,7 +238,6 @@ class TransactionMapperTest {
                 .valueDatetime(LocalDateTime.of(2026, 9, 1, 12, 0))
                 .amount(amount)
                 .direction(TxnDirection.DEBIT)
-                .type(TxnType.UNKNOWN)
                 .mode(TxnMode.UPI)
                 .counterparty(counterparty)
                 .counterpartyId(counterpartyId)

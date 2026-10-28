@@ -14,6 +14,5 @@ public enum TxnType {
     BORROW_REPAYMENT,               // N/A
     SELF_ACCOUNT_TRANSFER,          // N/A
     INVESTMENT,                     // N/A
-    SALARY,                         // Category: INCOME
-    UNKNOWN,                        // Todo: remove
+    SALARY                          // Category: INCOME
 }

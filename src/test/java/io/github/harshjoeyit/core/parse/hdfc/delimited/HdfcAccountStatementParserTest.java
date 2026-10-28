@@ -75,7 +75,7 @@ class HdfcAccountStatementParserTest {
                 .containsExactly(
                         861.00,
                         TxnDirection.DEBIT,
-                        TxnType.UNKNOWN,
+                        null,
                         TxnMode.UPI,
                         LocalDateTime.of(2026, 9, 1, 0, 0),
                         LocalDateTime.of(2026, 9, 1, 0, 0),
@@ -107,7 +107,7 @@ class HdfcAccountStatementParserTest {
                 .containsExactly(
                         30000.00,
                         TxnDirection.CREDIT,
-                        TxnType.UNKNOWN,
+                        null,
                         TxnMode.UPI,
                         LocalDateTime.of(2026, 9, 2, 0, 0),
                         LocalDateTime.of(2026, 9, 2, 0, 0),

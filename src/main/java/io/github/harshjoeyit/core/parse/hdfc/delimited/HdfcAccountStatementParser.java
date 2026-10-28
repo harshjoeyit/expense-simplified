@@ -97,7 +97,6 @@ public class HdfcAccountStatementParser implements Parser {
                             .valueDatetime(valueDateTime)
                             .amount(amount)
                             .direction(direction)
-                            .type(TxnType.UNKNOWN)
                             .mode(narrationParserResult.getTxnMode())
                             .counterpartyId(narrationParserResult.getCounterpartyId())
                             .counterparty(narrationParserResult.getCounterparty())
