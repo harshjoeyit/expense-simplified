@@ -212,7 +212,7 @@ class ReviewServiceTest {
                 .txnType(TxnType.PURCHASE)
                 .autoReview(true)
                 .build();
-        verify(mappingRuleRepository).saveByCounterpartyId("CP-123", expectedRule);
+        verify(mappingRuleRepository).saveByCounterpartyId("CP-123", expectedRule, false);
     }
 
     @Test
@@ -243,6 +243,139 @@ class ReviewServiceTest {
         verifyNoInteractions(statementRepository);
     }
 
+    @Test
+    void saveRule_byCounterpartyName_savesSuccessfully() {
+        SaveRule saveRule = SaveRule.builder()
+                .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
+                .id("Amazon")
+                .autoReview(true)
+                .build();
+
+        reviewService.saveRule(saveRule, TxnType.PURCHASE, TxnCategory.SHOPPING);
+
+        MappingRule expectedRule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.SHOPPING)
+                .autoReview(true)
+                .build();
+        verify(mappingRuleRepository).saveByCounterpartyName("Amazon", expectedRule, false);
+    }
+
+    @Test
+    void saveRule_byCounterpartyNameWithOverwrite_savesSuccessfully() {
+        SaveRule saveRule = SaveRule.builder()
+                .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
+                .id("Amazon")
+                .autoReview(true)
+                .build();
+
+        reviewService.saveRule(saveRule, TxnType.PURCHASE, TxnCategory.SHOPPING, true);
+
+        MappingRule expectedRule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.SHOPPING)
+                .autoReview(true)
+                .build();
+        verify(mappingRuleRepository).saveByCounterpartyName("Amazon", expectedRule, true);
+    }
+
+    @Test
+    void saveRule_byCounterpartyId_savesSuccessfully() {
+        SaveRule saveRule = SaveRule.builder()
+                .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_ID)
+                .id("CP-456")
+                .autoReview(true)
+                .build();
+
+        reviewService.saveRule(saveRule, TxnType.PURCHASE, TxnCategory.UTILITIES);
+
+        MappingRule expectedRule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.UTILITIES)
+                .autoReview(true)
+                .build();
+        verify(mappingRuleRepository).saveByCounterpartyId("CP-456", expectedRule, false);
+    }
+
+    @Test
+    void saveRule_nullSaveRule_throwsInvalidMappingRule() {
+        assertThatThrownBy(() -> reviewService.saveRule(null, TxnType.PURCHASE, TxnCategory.SHOPPING))
+                .isInstanceOf(InvalidMappingRule.class)
+                .hasMessage("Save rule cannot be null");
+    }
+
+    @Test
+    void findExistingRule_whenRuleExistsByCounterpartyId_returnsMatch() {
+        MappingRule rule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.SHOPPING)
+                .autoReview(true)
+                .build();
+
+        when(mappingRuleRepository.findByCounterpartyId("CP-123")).thenReturn(Optional.of(rule));
+
+        Optional<ReviewService.ExistingRuleMatch> match = reviewService.findExistingRule("CP-123", "Merchant");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().matchType()).isEqualTo(SaveRule.SaveRuleByType.COUNTERPARTY_ID);
+        assertThat(match.get().matchKey()).isEqualTo("CP-123");
+        assertThat(match.get().rule()).isEqualTo(rule);
+    }
+
+    @Test
+    void findExistingRule_whenRuleExistsByCounterpartyName_returnsMatch() {
+        MappingRule rule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.SHOPPING)
+                .autoReview(true)
+                .build();
+
+        when(mappingRuleRepository.findByCounterpartyName("Amazon")).thenReturn(Optional.of(rule));
+
+        Optional<ReviewService.ExistingRuleMatch> match = reviewService.findExistingRule(null, "Amazon");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().matchType()).isEqualTo(SaveRule.SaveRuleByType.COUNTERPARTY_NAME);
+        assertThat(match.get().matchKey()).isEqualTo("Amazon");
+        assertThat(match.get().rule()).isEqualTo(rule);
+    }
+
+    @Test
+    void findExistingRule_whenNoRuleExists_returnsEmpty() {
+        when(mappingRuleRepository.findByCounterpartyId("CP-999")).thenReturn(Optional.empty());
+        when(mappingRuleRepository.findByCounterpartyName("Unknown")).thenReturn(Optional.empty());
+
+        Optional<ReviewService.ExistingRuleMatch> match = reviewService.findExistingRule("CP-999", "Unknown");
+
+        assertThat(match).isEmpty();
+    }
+
+    @Test
+    void findExistingRule_nullAndBlankInputs_returnsEmpty() {
+        assertThat(reviewService.findExistingRule((String) null, null)).isEmpty();
+        assertThat(reviewService.findExistingRule("   ", "  ")).isEmpty();
+        assertThat(reviewService.findExistingRule((NormalizedTransaction) null)).isEmpty();
+    }
+
+    @Test
+    void findExistingRule_withTransactionObject_delegatesCorrectly() {
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .counterpartyId("CP-123")
+                .counterparty("Merchant")
+                .build();
+
+        MappingRule rule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.SHOPPING)
+                .autoReview(true)
+                .build();
+
+        when(mappingRuleRepository.findByCounterpartyId("CP-123")).thenReturn(Optional.of(rule));
+
+        Optional<ReviewService.ExistingRuleMatch> match = reviewService.findExistingRule(txn);
+        assertThat(match).isPresent();
+        assertThat(match.get().matchKey()).isEqualTo("CP-123");
+    }
 
     @Test
     void resolveTransaction_lastReviewedTransaction_updatesStatementAsReviewComplete() {

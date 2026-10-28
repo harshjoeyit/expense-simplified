@@ -1,8 +1,10 @@
 package io.github.harshjoeyit.cli.command;
 
+import io.github.harshjoeyit.core.exception.DuplicateMappingRuleException;
 import io.github.harshjoeyit.core.exception.InvalidMappingRule;
 import io.github.harshjoeyit.core.exception.InvalidStatementId;
 import io.github.harshjoeyit.core.exception.InvalidTransactionId;
+import io.github.harshjoeyit.core.mapping.model.MappingRule;
 import io.github.harshjoeyit.core.model.*;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
@@ -183,7 +185,7 @@ public class StatementCommands extends AbstractShellComponent {
                         i + 1, transactions.size(), readFriendlyDateTime(txn.getDatetime()), txn.getMode(),
                         txn.getAmount(), dir, shareInfo, counterparty, comment, txn.getType()));
                 // Tooltip for user
-                writer.println("[c] Categorize  [s] Split  [n/→] Next  [p/←] Prev  [q] Quit");
+                writer.println("[c] Categorize  [s] Split  [r] Save Rule  [n/→] Next  [p/←] Prev  [q] Quit");
                 writer.flush();
 
                 // read navigation input
@@ -222,11 +224,15 @@ public class StatementCommands extends AbstractShellComponent {
                     continue; // stay on current transaction
                 }
 
+                if (action == ReviewNavAction.RULE) {
+                    promptRule(txn, txnTypeOptions, txnCategoryOptions);
+                    continue; // stay on current transaction
+                }
+
                 if (action == ReviewNavAction.CATEGORIZE) {
                     TxnType txnType = null;
                     TxnCategory txnCategory = null;
                     String reviewRemarks;
-                    SaveRule saveRule;
 
                     // Txn type
                     Optional<String> selectedTxnType = promptSelectSingleItem(
@@ -246,12 +252,10 @@ public class StatementCommands extends AbstractShellComponent {
 
                     // Review remarks
                     reviewRemarks = promptString("Review remarks (optional):", null).orElse(null);
-                    // Save rule for future (optional)
-                    saveRule = promptSaveRule(txn).orElse(null);
 
                     try {
                         //  Resolve transaction
-                        reviewService.resolveTransaction(txn.getId(), txnType, txnCategory, reviewRemarks, saveRule);
+                        reviewService.resolveTransaction(txn.getId(), txnType, txnCategory, reviewRemarks, null);
                         writer.println("✓ Resolved");
                     } catch (InvalidTransactionId e) {
                         writer.println("⚠ Invalid transaction (skipping): " + e.getMessage());
@@ -506,53 +510,133 @@ public class StatementCommands extends AbstractShellComponent {
         return Optional.ofNullable(result).filter(s -> !s.isBlank());
     }
 
-    private Optional<SaveRule> promptSaveRule(NormalizedTransaction txn) {
-        List<SelectorItem<String>> options = new ArrayList<>();
+    private void promptRule(
+            NormalizedTransaction txn,
+            List<SelectorItem<String>> txnTypeOptions,
+            List<SelectorItem<String>> txnCategoryOptions) {
 
-        // 1. Don't save
-        options.add(SelectorItem.of("Don't save rule", "NONE"));
+        PrintWriter writer = getTerminal().writer();
 
-        // 2. Save by Counterparty ID
-        boolean hasCounterpartyId = txn.getCounterpartyId() != null && !txn.getCounterpartyId().isBlank();
-        if (hasCounterpartyId) {
-            options.add(SelectorItem.of("Save by Counterparty ID ("
-                    + txn.getCounterpartyId() + ")", "BY_ID" + txn.getCounterpartyId()));
+        boolean hasId = txn.getCounterpartyId() != null && !txn.getCounterpartyId().isBlank();
+        boolean hasName = txn.getCounterparty() != null && !txn.getCounterparty().isBlank();
+
+        if (!hasId && !hasName) {
+            writer.println("⚠ Cannot create rule: transaction has neither counterparty ID nor counterparty name");
+            getTerminal().flush();
+            return;
         }
 
-        // 3. Save by Counterparty Name
-        boolean hasCounterpartyName = txn.getCounterparty() != null && !txn.getCounterparty().isBlank();
-        if (hasCounterpartyName) {
-            options.add(SelectorItem.of("Save by Counterparty Name ("
-                    + txn.getCounterparty() + ")", "BY_NAME: " + txn.getCounterparty()));
+        // Check if rule already exists
+        boolean isOverwrite = false;
+        Optional<ReviewService.ExistingRuleMatch> existingRule =
+                reviewService.findExistingRule(txn.getCounterpartyId(), txn.getCounterparty());
+        if (existingRule.isPresent()) {
+            ReviewService.ExistingRuleMatch match = existingRule.get();
+            MappingRule rule = match.rule();
+
+            String categoryDisplay = rule.txnCategory() != null ? " / " + rule.txnCategory().name() : "";
+            String typeDisplay = rule.txnType() != null ? rule.txnType().name() : "-";
+
+            writer.println(String.format("%nℹ Existing rule: %s (%s) -> %s%s",
+                    match.matchKey(), match.matchType().name(), typeDisplay, categoryDisplay));
+            getTerminal().flush();
+
+            List<SelectorItem<String>> overwriteOptions = List.of(
+                    SelectorItem.of("Keep existing rule", "KEEP"),
+                    SelectorItem.of("Overwrite rule", "OVERWRITE")
+            );
+            Optional<String> choice = promptSelectSingleItem("Do you want to overwrite this rule?", overwriteOptions, 2);
+            if (choice.isEmpty() || "KEEP".equals(choice.get())) {
+                writer.println("Keeping existing rule");
+                getTerminal().flush();
+                return;
+            }
+            isOverwrite = true;
         }
 
-        // If neither counterparty name nor Id exists, skip rule prompt entirely
-        if (options.size() == 1) {
-            return Optional.empty();
+        SaveRule.SaveRuleByType ruleType;
+        String ruleIdentifier;
+
+        if (hasId && hasName) {
+            // has both Id and name, prompt user to choose one
+            List<SelectorItem<SaveRule.SaveRuleByType>> idOptions = List.of(
+                    SelectorItem.of("Counterparty ID (" + txn.getCounterpartyId() + ")", SaveRule.SaveRuleByType.COUNTERPARTY_ID),
+                    SelectorItem.of("Counterparty Name (" + txn.getCounterparty() + ")", SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
+            );
+            Optional<SaveRule.SaveRuleByType> selected = promptSelectSingleItem("Save rule by:", idOptions, 5);
+            if (selected.isEmpty()) {
+                writer.println("Rule creation cancelled");
+                getTerminal().flush();
+                return;
+            }
+            ruleType = selected.get();
+            ruleIdentifier = (ruleType == SaveRule.SaveRuleByType.COUNTERPARTY_ID)
+                    ? txn.getCounterpartyId()
+                    : txn.getCounterparty();
+        } else if (hasId) {
+            ruleType = SaveRule.SaveRuleByType.COUNTERPARTY_ID;
+            ruleIdentifier = txn.getCounterpartyId();
+            writer.println("Saving rule by Counterparty ID: " + ruleIdentifier);
+            getTerminal().flush();
+        } else {
+            ruleType = SaveRule.SaveRuleByType.COUNTERPARTY_NAME;
+            ruleIdentifier = txn.getCounterparty();
+            writer.println("Saving rule by Counterparty Name: " + ruleIdentifier);
+            getTerminal().flush();
         }
 
-        Optional<String> selected = promptSelectSingleItem("Save rule for future transactions?", options, 5);
-        if (selected.isEmpty() || "NONE".equals(selected.get())) {
-            return Optional.empty();
+        // Ensure Type is present
+        TxnType txnType = txn.getType();
+        if (isOverwrite || txnType == null) {
+            Optional<String> selectedType = promptSelectSingleItem("Select type:", txnTypeOptions, 5);
+            if (selectedType.isEmpty()) {
+                writer.println("Rule creation cancelled");
+                getTerminal().flush();
+                return;
+            }
+            txnType = TxnType.valueOf(selectedType.get());
+            txn.setType(txnType);
         }
 
-        if (selected.get().startsWith("BY_ID")) {
-            return Optional.of(SaveRule.builder()
-                    .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_ID)
-                    .id(txn.getCounterpartyId())
-                    .autoReview(true)
-                    .build());
+        // Ensure Category is present if required by Type
+        TxnCategory txnCategory = txn.getCategory();
+        if (isOverwrite || (requiresCategory(txnType) && txnCategory == null)) {
+            if (requiresCategory(txnType)) {
+                Optional<String> selectedCategory = promptSelectSingleItem("Select category:", txnCategoryOptions, 5);
+                if (selectedCategory.isEmpty()) {
+                    writer.println("Rule creation cancelled");
+                    getTerminal().flush();
+                    return;
+                }
+                txnCategory = TxnCategory.valueOf(selectedCategory.get());
+                txn.setCategory(txnCategory);
+            } else {
+                txnCategory = null;
+                txn.setCategory(null);
+            }
         }
 
-        if (selected.get().startsWith("BY_NAME")) {
-            return Optional.of(SaveRule.builder()
-                    .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
-                    .id(txn.getCounterparty())
-                    .autoReview(true)
-                    .build());
-        }
+        SaveRule saveRule = SaveRule.builder()
+                .saveRuleByType(ruleType)
+                .id(ruleIdentifier)
+                .autoReview(true)
+                .build();
 
-        return Optional.empty();
+        try {
+            reviewService.saveRule(saveRule, txnType, txnCategory, isOverwrite);
+            String categoryDisplay = txnCategory != null ? " / " + txnCategory.name() : "";
+            String actionMessage = isOverwrite ? "✓ Rule updated" : "✓ Rule saved";
+            writer.println(String.format("%n%s: %s (%s) -> %s%s",
+                    actionMessage, ruleIdentifier, ruleType.name(), txnType.name(), categoryDisplay));
+        } catch (DuplicateMappingRuleException e) {
+            writer.println("⚠ " + e.getMessage());
+            log.warn("Rule already exists for txn {}", txn.getId(), e);
+        } catch (Exception e) {
+            writer.println("⚠ Failed to save rule: " + e.getMessage());
+            log.error("Failed to save rule for txn {}", txn.getId(), e);
+        } finally {
+            getTerminal().flush();
+        }
     }
 
     private enum ReviewNavAction {
@@ -560,7 +644,8 @@ public class StatementCommands extends AbstractShellComponent {
         NEXT,
         PREV,
         QUIT,
-        SPLIT
+        SPLIT,
+        RULE
     }
 
     /**
@@ -591,6 +676,9 @@ public class StatementCommands extends AbstractShellComponent {
 
         // Split: 's', 'S'
         keyMap.bind(ReviewNavAction.SPLIT, "s", "S");
+
+        // Rule: 'r', 'R'
+        keyMap.bind(ReviewNavAction.RULE, "r", "R");
 
         return keyMap;
     }

@@ -8,6 +8,13 @@ public interface MappingRuleRepository {
     Optional<MappingRule> findByCounterpartyId(String counterpartyId);
     Optional<MappingRule> findByCounterpartyName(String counterpartyName);
 
-    void saveByCounterpartyId(String counterpartyId, MappingRule rule);
-    void saveByCounterpartyName(String counterpartyName,  MappingRule rule);
+    void saveByCounterpartyId(String counterpartyId, MappingRule rule, boolean overwrite);
+    default void saveByCounterpartyId(String counterpartyId, MappingRule rule) {
+        saveByCounterpartyId(counterpartyId, rule, false);
+    }
+
+    void saveByCounterpartyName(String counterpartyName, MappingRule rule, boolean overwrite);
+    default void saveByCounterpartyName(String counterpartyName, MappingRule rule) {
+        saveByCounterpartyName(counterpartyName, rule, false);
+    }
 }

@@ -1,5 +1,6 @@
 package io.github.harshjoeyit.core.mapping.repository;
 
+import io.github.harshjoeyit.core.exception.DuplicateMappingRuleException;
 import io.github.harshjoeyit.core.mapping.config.MappingConfig;
 import io.github.harshjoeyit.core.mapping.model.MappingRule;
 import lombok.extern.slf4j.Slf4j;
@@ -52,22 +53,22 @@ public class InMemoryMappingRuleRepository implements MappingRuleRepository {
     }
 
     @Override
-    public void saveByCounterpartyId(String counterpartyId, MappingRule rule) {
+    public void saveByCounterpartyId(String counterpartyId, MappingRule rule, boolean overwrite) {
         String cpId = normalize(counterpartyId);
-        if (idRules.get(cpId) != null) {
+        if (!overwrite && idRules.containsKey(cpId)) {
             log.error("rule already exists for counterparty id: {}", counterpartyId);
-            return;
+            throw new DuplicateMappingRuleException("Rule already exists for counterparty ID: " + counterpartyId);
         }
         // Todo: validate if rule is proper
         idRules.put(cpId, rule);
     }
 
     @Override
-    public void saveByCounterpartyName(String counterpartyName, MappingRule rule) {
+    public void saveByCounterpartyName(String counterpartyName, MappingRule rule, boolean overwrite) {
         String cpName = normalize(counterpartyName);
-        if (nameRules.get(cpName) != null) {
+        if (!overwrite && nameRules.containsKey(cpName)) {
             log.error("rule already exists for counterparty name: {}", counterpartyName);
-            return;
+            throw new DuplicateMappingRuleException("Rule already exists for counterparty name: " + counterpartyName);
         }
         // Todo: validate if rule is proper
         nameRules.put(cpName, rule);

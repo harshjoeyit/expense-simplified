@@ -1,5 +1,6 @@
 package io.github.harshjoeyit.core.mapping.repository;
 
+import io.github.harshjoeyit.core.exception.DuplicateMappingRuleException;
 import io.github.harshjoeyit.core.mapping.config.MappingConfig;
 import io.github.harshjoeyit.core.mapping.model.MappingRule;
 import io.github.harshjoeyit.core.model.TxnCategory;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InMemoryMappingRuleRepositoryTest {
 
@@ -93,5 +95,71 @@ class InMemoryMappingRuleRepositoryTest {
         assertThat(repository.findByCounterpartyId("   ")).isEmpty();
         assertThat(repository.findByCounterpartyName(null)).isEmpty();
         assertThat(repository.findByCounterpartyName("")).isEmpty();
+    }
+
+    @Test
+    void saveByCounterpartyName_whenDuplicateWithoutOverwrite_throwsDuplicateMappingRuleException() {
+        InMemoryMappingRuleRepository repository = new InMemoryMappingRuleRepository(
+                new MappingConfig(Map.of(), Map.of())
+        );
+        MappingRule rule1 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.FOOD).build();
+        MappingRule rule2 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.SHOPPING).build();
+
+        repository.saveByCounterpartyName("Amazon", rule1);
+
+        assertThatThrownBy(() -> repository.saveByCounterpartyName("Amazon", rule2))
+                .isInstanceOf(DuplicateMappingRuleException.class)
+                .hasMessageContaining("Rule already exists for counterparty name: Amazon");
+
+        assertThatThrownBy(() -> repository.saveByCounterpartyName("Amazon", rule2, false))
+                .isInstanceOf(DuplicateMappingRuleException.class);
+    }
+
+    @Test
+    void saveByCounterpartyName_whenDuplicateWithOverwrite_updatesExistingRule() {
+        InMemoryMappingRuleRepository repository = new InMemoryMappingRuleRepository(
+                new MappingConfig(Map.of(), Map.of())
+        );
+        MappingRule rule1 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.FOOD).build();
+        MappingRule rule2 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.SHOPPING).build();
+
+        repository.saveByCounterpartyName("Amazon", rule1);
+        repository.saveByCounterpartyName("Amazon", rule2, true);
+
+        Optional<MappingRule> updated = repository.findByCounterpartyName("Amazon");
+        assertThat(updated).isPresent().contains(rule2);
+    }
+
+    @Test
+    void saveByCounterpartyId_whenDuplicateWithoutOverwrite_throwsDuplicateMappingRuleException() {
+        InMemoryMappingRuleRepository repository = new InMemoryMappingRuleRepository(
+                new MappingConfig(Map.of(), Map.of())
+        );
+        MappingRule rule1 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.FOOD).build();
+        MappingRule rule2 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.SHOPPING).build();
+
+        repository.saveByCounterpartyId("upi@okaxis", rule1);
+
+        assertThatThrownBy(() -> repository.saveByCounterpartyId("upi@okaxis", rule2))
+                .isInstanceOf(DuplicateMappingRuleException.class)
+                .hasMessageContaining("Rule already exists for counterparty ID: upi@okaxis");
+
+        assertThatThrownBy(() -> repository.saveByCounterpartyId("upi@okaxis", rule2, false))
+                .isInstanceOf(DuplicateMappingRuleException.class);
+    }
+
+    @Test
+    void saveByCounterpartyId_whenDuplicateWithOverwrite_updatesExistingRule() {
+        InMemoryMappingRuleRepository repository = new InMemoryMappingRuleRepository(
+                new MappingConfig(Map.of(), Map.of())
+        );
+        MappingRule rule1 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.FOOD).build();
+        MappingRule rule2 = MappingRule.builder().txnType(TxnType.PURCHASE).txnCategory(TxnCategory.SHOPPING).build();
+
+        repository.saveByCounterpartyId("upi@okaxis", rule1);
+        repository.saveByCounterpartyId("upi@okaxis", rule2, true);
+
+        Optional<MappingRule> updated = repository.findByCounterpartyId("upi@okaxis");
+        assertThat(updated).isPresent().contains(rule2);
     }
 }

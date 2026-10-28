@@ -84,7 +84,7 @@ public class ReviewService {
 
         // Save rule
         if (saveRule != null) {
-            saveRule(saveRule, transaction.getCategory(), transaction.getType());
+            saveRule(saveRule, transaction.getType(), transaction.getCategory());
         }
 
         // Mark statement as review completed when no transaction remain to be reviewed
@@ -95,7 +95,16 @@ public class ReviewService {
     }
 
     // Save rule to mapping repository
-    private void saveRule(SaveRule saveRule, TxnCategory txnCategory, TxnType txnType) throws UnsupportedOperationException {
+    public void saveRule(SaveRule saveRule, TxnType txnType, TxnCategory txnCategory) throws UnsupportedOperationException {
+        saveRule(saveRule, txnType, txnCategory, false);
+    }
+
+    public void saveRule(SaveRule saveRule, TxnType txnType, TxnCategory txnCategory, boolean overwrite) throws UnsupportedOperationException {
+
+        if (saveRule == null) {
+            log.error("Save rule cannot be null");
+            throw new InvalidMappingRule("Save rule cannot be null");
+        }
 
         if (saveRule.getSaveRuleByType() == null || saveRule.getId() == null || saveRule.getId().isBlank()) {
             log.error("Save rule is incomplete. Type and ID are required: {}", saveRule);
@@ -109,8 +118,8 @@ public class ReviewService {
                 .build();
 
         switch (saveRule.getSaveRuleByType()) {
-            case COUNTERPARTY_ID -> mappingRuleRepository.saveByCounterpartyId(saveRule.getId(), mappingRule);
-            case COUNTERPARTY_NAME -> mappingRuleRepository.saveByCounterpartyName(saveRule.getId(), mappingRule);
+            case COUNTERPARTY_ID -> mappingRuleRepository.saveByCounterpartyId(saveRule.getId(), mappingRule, overwrite);
+            case COUNTERPARTY_NAME -> mappingRuleRepository.saveByCounterpartyName(saveRule.getId(), mappingRule, overwrite);
             default -> throw new UnsupportedOperationException(
                     "Unsupported rule type" + saveRule.getSaveRuleByType()
             );
@@ -125,4 +134,40 @@ public class ReviewService {
         statementRepository.saveStatement(statement.withMarkComplete());
     }
 
+    public record ExistingRuleMatch(
+            SaveRule.SaveRuleByType matchType,
+            String matchKey,
+            MappingRule rule
+    ) {}
+
+    public Optional<ExistingRuleMatch> findExistingRule(String counterpartyId, String counterpartyName) {
+        if (counterpartyId != null && !counterpartyId.isBlank()) {
+            Optional<MappingRule> rule = mappingRuleRepository.findByCounterpartyId(counterpartyId);
+            if (rule.isPresent()) {
+                return Optional.of(new ExistingRuleMatch(
+                        SaveRule.SaveRuleByType.COUNTERPARTY_ID,
+                        counterpartyId,
+                        rule.get()
+                ));
+            }
+        }
+        if (counterpartyName != null && !counterpartyName.isBlank()) {
+            Optional<MappingRule> rule = mappingRuleRepository.findByCounterpartyName(counterpartyName);
+            if (rule.isPresent()) {
+                return Optional.of(new ExistingRuleMatch(
+                        SaveRule.SaveRuleByType.COUNTERPARTY_NAME,
+                        counterpartyName,
+                        rule.get()
+                ));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public Optional<ExistingRuleMatch> findExistingRule(NormalizedTransaction txn) {
+        return txn != null
+                ? findExistingRule(txn.getCounterpartyId(), txn.getCounterparty())
+                : Optional.empty();
+    }
 }
+
