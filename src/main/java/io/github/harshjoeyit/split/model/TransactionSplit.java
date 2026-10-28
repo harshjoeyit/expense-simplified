@@ -15,12 +15,14 @@ public record TransactionSplit(
         double amount,
         SplitStrategy strategy,
         SplitStatus status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
     public static class TransactionSplitBuilder {
         private UUID id = UUID.randomUUID();
         private SplitStatus status = SplitStatus.PENDING;
         private LocalDateTime createdAt = LocalDateTime.now();
+        private LocalDateTime updatedAt = LocalDateTime.now();
     }
 
     public TransactionSplit withMarkPosted() {
@@ -33,6 +35,7 @@ public record TransactionSplit(
                 .strategy(this.strategy)
                 .status(SplitStatus.POSTED)
                 .createdAt(this.createdAt)
+                .updatedAt(LocalDateTime.now())
                 .build();
     }
 }

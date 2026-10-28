@@ -5,6 +5,8 @@ import io.github.harshjoeyit.split.model.TransactionSplit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -92,6 +94,7 @@ public class InMemorySplitRepository implements SplitRepository {
                     .strategy(split.strategy())
                     .status(split.status())
                     .createdAt(existingSplit.createdAt())
+                    .updatedAt(LocalDateTime.now())
                     .build();
             splits.put(split.id(), updatedSplit);
         }

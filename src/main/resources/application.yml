@@ -13,6 +13,19 @@ spring:
       - optional:classpath:export-profile.yml
       - optional:classpath:friends.yml
 
+  datasource:
+    url: jdbc:sqlite:${user.home}/.expense-simplified/expense-simplified.db?journal_mode=WAL&foreign_keys=ON&busy_timeout=5000
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  persistence: sqlite
+
 logging:
   file:
     name: app.log
