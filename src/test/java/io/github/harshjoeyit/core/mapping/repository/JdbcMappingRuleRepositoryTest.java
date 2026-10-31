@@ -189,4 +189,35 @@ class JdbcMappingRuleRepositoryTest {
         Optional<MappingRule> afterRestart = customRepo.findByCounterpartyId("test@upi");
         assertThat(afterRestart).isPresent().contains(userModifiedRule);
     }
+
+    @Test
+    void init_restartsDoNotAdvanceSqliteSequence() {
+        MappingRule seedRule = MappingRule.builder()
+                .txnType(TxnType.PURCHASE)
+                .txnCategory(TxnCategory.FOOD)
+                .autoReview(false)
+                .build();
+
+        MappingConfig customConfig = new MappingConfig(
+                Map.of("test@upi", seedRule),
+                Map.of("Test Merchant", seedRule)
+        );
+
+        JdbcMappingRuleRepository customRepo = new JdbcMappingRuleRepository(jdbcClient, customConfig);
+        customRepo.init();
+
+        Integer seqAfterFirstInit = jdbcClient.sql("SELECT seq FROM sqlite_sequence WHERE name = 'mapping_rules'")
+                .query(Integer.class)
+                .single();
+
+        // Re-run init multiple times simulating app restarts
+        customRepo.init();
+        customRepo.init();
+
+        Integer seqAfterSubsequentInits = jdbcClient.sql("SELECT seq FROM sqlite_sequence WHERE name = 'mapping_rules'")
+                .query(Integer.class)
+                .single();
+
+        assertThat(seqAfterSubsequentInits).isEqualTo(seqAfterFirstInit);
+    }
 }

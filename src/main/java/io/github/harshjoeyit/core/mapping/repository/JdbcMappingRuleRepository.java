@@ -130,6 +130,10 @@ public class JdbcMappingRuleRepository implements MappingRuleRepository {
             return;
         }
 
+        if (existsRule(ruleType, normalizedKey)) {
+            return;
+        }
+
         String sql = """
                 INSERT INTO mapping_rules (
                     rule_type, rule_key, category, type, auto_review, created_at, updated_at
@@ -152,21 +156,38 @@ public class JdbcMappingRuleRepository implements MappingRuleRepository {
     }
 
     private void upsertRule(String ruleType, String normalizedKey, MappingRule rule) {
-        String sql = """
+        String now = LocalDateTime.now().toString();
+
+        if (existsRule(ruleType, normalizedKey)) {
+            String updateSql = """
+                    UPDATE mapping_rules
+                    SET category = :category,
+                        type = :type,
+                        auto_review = :autoReview,
+                        updated_at = :updatedAt
+                    WHERE rule_type = :ruleType AND rule_key = :ruleKey
+                    """;
+            jdbcClient.sql(updateSql)
+                    .param("ruleType", ruleType)
+                    .param("ruleKey", normalizedKey)
+                    .param("category", rule.txnCategory() != null ? rule.txnCategory().name() : null)
+                    .param("type", rule.txnType() != null ? rule.txnType().name() : null)
+                    .param("autoReview", rule.autoReview() ? 1 : 0)
+                    .param("updatedAt", now)
+                    .update();
+            log.debug("Updated {} rule for key: {}", ruleType, normalizedKey);
+            return;
+        }
+
+        String insertSql = """
                 INSERT INTO mapping_rules (
                     rule_type, rule_key, category, type, auto_review, created_at, updated_at
                 ) VALUES (
                     :ruleType, :ruleKey, :category, :type, :autoReview, :createdAt, :updatedAt
                 )
-                ON CONFLICT(rule_type, rule_key) DO UPDATE SET
-                    category    = excluded.category,
-                    type        = excluded.type,
-                    auto_review = excluded.auto_review,
-                    updated_at  = excluded.updated_at
                 """;
 
-        String now = LocalDateTime.now().toString();
-        jdbcClient.sql(sql)
+        jdbcClient.sql(insertSql)
                 .param("ruleType", ruleType)
                 .param("ruleKey", normalizedKey)
                 .param("category", rule.txnCategory() != null ? rule.txnCategory().name() : null)
