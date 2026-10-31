@@ -3,6 +3,7 @@ package io.github.harshjoeyit.split.repository;
 import io.github.harshjoeyit.split.model.SplitStatus;
 import io.github.harshjoeyit.split.model.TransactionSplit;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Repository
+@ConditionalOnProperty(name = "app.persistence", havingValue = "in-memory")
 public class InMemorySplitRepository implements SplitRepository {
 
     Map<UUID, TransactionSplit> splits = new ConcurrentHashMap<>();

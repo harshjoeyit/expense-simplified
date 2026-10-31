@@ -3,6 +3,7 @@ package io.github.harshjoeyit.core.repository;
 import io.github.harshjoeyit.config.InstrumentConfig;
 import io.github.harshjoeyit.core.model.Instrument;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
@@ -10,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Repository
+@ConditionalOnProperty(name = "app.persistence", havingValue = "in-memory")
 public class InMemoryInstrumentRepository implements InstrumentRepository {
 
     private final Map<String, Instrument> instruments = new ConcurrentHashMap<>();

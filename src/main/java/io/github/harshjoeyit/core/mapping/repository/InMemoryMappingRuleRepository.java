@@ -4,6 +4,7 @@ import io.github.harshjoeyit.core.exception.DuplicateMappingRuleException;
 import io.github.harshjoeyit.core.mapping.config.MappingConfig;
 import io.github.harshjoeyit.core.mapping.model.MappingRule;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Repository
+@ConditionalOnProperty(name = "app.persistence", havingValue = "in-memory")
 public class InMemoryMappingRuleRepository implements MappingRuleRepository {
 
     private final Map<String, MappingRule> idRules = new ConcurrentHashMap<>();

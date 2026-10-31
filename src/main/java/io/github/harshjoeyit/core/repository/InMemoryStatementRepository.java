@@ -2,6 +2,7 @@ package io.github.harshjoeyit.core.repository;
 
 import io.github.harshjoeyit.core.model.Statement;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
@@ -9,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Repository
+@ConditionalOnProperty(name = "app.persistence", havingValue = "in-memory")
 public class InMemoryStatementRepository implements StatementRepository {
 
     private final Map<UUID, Statement> statements = new ConcurrentHashMap<>();

@@ -3,6 +3,7 @@ package io.github.harshjoeyit.core.repository;
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
 import io.github.harshjoeyit.core.model.TxnReviewStatus;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Repository
+@ConditionalOnProperty(name = "app.persistence", havingValue = "in-memory")
 public class InMemoryTransactionRepository implements TransactionRepository {
 
     private final Map<UUID, NormalizedTransaction> transactions = new ConcurrentHashMap<>();
@@ -84,12 +86,5 @@ public class InMemoryTransactionRepository implements TransactionRepository {
             transactions.put(transaction.getId(), transaction);
         }
         log.debug("updated transaction: {}", transaction.getId());
-    }
-
-    @Override
-    public void saveTransactions(List<NormalizedTransaction> transactions) {
-        if (transactions != null) {
-            transactions.forEach(this::saveTransaction);
-        }
     }
 }
