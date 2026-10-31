@@ -17,6 +17,7 @@ import io.github.harshjoeyit.split.InvalidSplitException;
 import io.github.harshjoeyit.split.config.FriendConfig;
 import io.github.harshjoeyit.split.model.Friend;
 import io.github.harshjoeyit.split.model.SplitInput;
+import io.github.harshjoeyit.split.model.SplitResult;
 import io.github.harshjoeyit.split.model.SplitStrategy;
 import io.github.harshjoeyit.split.model.TransactionSplit;
 import io.github.harshjoeyit.split.service.SplitService;
@@ -443,10 +444,15 @@ public class StatementCommands extends AbstractShellComponent {
                 .build();
 
         try {
-            List<TransactionSplit> splits = splitService.split(txn.getId(), splitInput);
+            SplitResult splitResult = splitService.split(txn.getId(), splitInput);
+
+            // Before split, txn.myShare = txn.Amount. After split, this value will change.
+            // Hence, update the in-memory transaction so that user can see updated - myShare
+            txn.setMyShare(splitResult.myShare());
+
             writer.println(String.format("%n✓ Split saved successfully!"));
-            writer.println(String.format("  • Your share: ₹%.2f", txn.getMyShare()));
-            for (TransactionSplit split : splits) {
+            writer.println(String.format("  • Your share: ₹%.2f", splitResult.myShare()));
+            for (TransactionSplit split : splitResult.splits()) {
                 writer.println(String.format("  • %s owes: ₹%.2f", split.friendName(), split.amount()));
             }
         } catch (InvalidSplitException e) {

@@ -6,6 +6,7 @@ import io.github.harshjoeyit.core.repository.TransactionRepository;
 import io.github.harshjoeyit.split.InvalidSplitException;
 import io.github.harshjoeyit.split.model.Friend;
 import io.github.harshjoeyit.split.model.SplitInput;
+import io.github.harshjoeyit.split.model.SplitResult;
 import io.github.harshjoeyit.split.model.TransactionSplit;
 import io.github.harshjoeyit.split.repository.SplitRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ public class SplitService {
         this.splitRepository = splitRepository;
     }
 
-    public List<TransactionSplit> split(UUID txnId, SplitInput splitInput)
+    public SplitResult split(UUID txnId, SplitInput splitInput)
             throws InvalidTransactionId, InvalidSplitException {
 
         NormalizedTransaction txn = transactionRepository
@@ -53,7 +54,7 @@ public class SplitService {
         };
     }
 
-    private List<TransactionSplit> splitShareAndSave(NormalizedTransaction txn, SplitInput splitInput) {
+    private SplitResult splitShareAndSave(NormalizedTransaction txn, SplitInput splitInput) {
         List<TransactionSplit> splits = new ArrayList<>();
         boolean selfInvolved = false;
         double selfShare = 0.0;
@@ -97,16 +98,13 @@ public class SplitService {
 
         // Todo: following two ops should be part of txn (to be atomic) when DB is implemented.
         splitRepository.saveSplits(splits);
-        if (selfInvolved) {
-            txn.setMyShare(selfShare);
-        } else {
-            txn.setMyShare(0.0);
-        }
+        double myShare = selfInvolved ? selfShare : 0.0;
+        txn.setMyShare(myShare);
         transactionRepository.saveTransaction(txn);
-        return splits;
+        return new SplitResult(myShare, splits);
     }
 
-    private List<TransactionSplit> splitPercentAndSave(NormalizedTransaction txn, SplitInput splitInput) {
+    private SplitResult splitPercentAndSave(NormalizedTransaction txn, SplitInput splitInput) {
         List<TransactionSplit> splits = new ArrayList<>();
         boolean selfInvolved = false;
         double selfShare = 0.0;
@@ -146,16 +144,13 @@ public class SplitService {
 
         // Todo: following two ops should be part of txn (to be atomic) when DB is implemented.
         splitRepository.saveSplits(splits);
-        if (selfInvolved) {
-            txn.setMyShare(selfShare);
-        } else {
-            txn.setMyShare(0.0);
-        }
+        double myShare = selfInvolved ? selfShare : 0.0;
+        txn.setMyShare(myShare);
         transactionRepository.saveTransaction(txn);
-        return splits;
+        return new SplitResult(myShare, splits);
     }
 
-    private List<TransactionSplit> splitEqualAndSave(NormalizedTransaction txn, SplitInput splitInput) {
+    private SplitResult splitEqualAndSave(NormalizedTransaction txn, SplitInput splitInput) {
         int friendCount = splitInput.valuePerFriend().size();
         double perPersonShareAmt = roundToTwoDecimals(splitInput.amount() / friendCount);
         double agg = 0.0;
@@ -191,16 +186,13 @@ public class SplitService {
 
         // Todo: following two ops should be part of txn (to be atomic) when DB is implemented.
         splitRepository.saveSplits(splits);
-        if (selfInvolved) {
-            txn.setMyShare(selfShareAmt);
-        } else {
-            txn.setMyShare(0.0);
-        }
+        double myShare = selfInvolved ? selfShareAmt : 0.0;
+        txn.setMyShare(myShare);
         transactionRepository.saveTransaction(txn);
-        return splits;
+        return new SplitResult(myShare, splits);
     }
 
-    private List<TransactionSplit> splitCustomAndSave(NormalizedTransaction txn, SplitInput splitInput) {
+    private SplitResult splitCustomAndSave(NormalizedTransaction txn, SplitInput splitInput) {
         List<TransactionSplit> splits = new ArrayList<>();
         boolean selfInvolved = false;
         double selfShareAmt = 0.0;
@@ -226,13 +218,10 @@ public class SplitService {
 
         // Todo: following two ops should be part of txn (to be atomic) when DB is implemented.
         splitRepository.saveSplits(splits);
-        if (selfInvolved) {
-            txn.setMyShare(selfShareAmt);
-        } else {
-            txn.setMyShare(0.0);
-        }
+        double myShare = selfInvolved ? selfShareAmt : 0.0;
+        txn.setMyShare(myShare);
         transactionRepository.saveTransaction(txn);
-        return splits;
+        return new SplitResult(myShare, splits);
     }
 
     private void validateSplitInput(SplitInput splitInput) throws InvalidSplitException {

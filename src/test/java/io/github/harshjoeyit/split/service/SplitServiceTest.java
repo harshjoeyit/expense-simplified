@@ -6,6 +6,7 @@ import io.github.harshjoeyit.core.repository.TransactionRepository;
 import io.github.harshjoeyit.split.InvalidSplitException;
 import io.github.harshjoeyit.split.model.Friend;
 import io.github.harshjoeyit.split.model.SplitInput;
+import io.github.harshjoeyit.split.model.SplitResult;
 import io.github.harshjoeyit.split.model.SplitStrategy;
 import io.github.harshjoeyit.split.model.TransactionSplit;
 import io.github.harshjoeyit.split.repository.SplitRepository;
@@ -96,19 +97,20 @@ class SplitServiceTest {
                 .valuePerFriend(participants)
                 .build();
 
-        List<TransactionSplit> result = splitService.split(txnId, input);
+        SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
         assertThat(txn.getMyShare()).isNotNull();
+        assertThat(result.myShare()).isEqualTo(txn.getMyShare());
 
         // TransactionSplit should NOT contain SELF
-        assertThat(result).hasSize(2);
-        assertThat(result).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).hasSize(2);
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
 
-        double friendSum = result.stream().mapToDouble(TransactionSplit::amount).sum();
+        double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
 
-        verify(splitRepository).saveSplits(result);
+        verify(splitRepository).saveSplits(result.splits());
     }
 
     @Test
@@ -129,13 +131,14 @@ class SplitServiceTest {
                 .valuePerFriend(participants)
                 .build();
 
-        List<TransactionSplit> result = splitService.split(txnId, input);
+        SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
         assertThat(txn.getMyShare()).isEqualTo(0.0);
+        assertThat(result.myShare()).isEqualTo(0.0);
 
-        assertThat(result).hasSize(2);
-        double sum = result.stream().mapToDouble(TransactionSplit::amount).sum();
+        assertThat(result.splits()).hasSize(2);
+        double sum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(sum).isEqualTo(100.0);
     }
 
@@ -158,16 +161,45 @@ class SplitServiceTest {
                 .valuePerFriend(participants)
                 .build();
 
-        List<TransactionSplit> result = splitService.split(txnId, input);
+        SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
         assertThat(txn.getMyShare()).isEqualTo(50.0);
+        assertThat(result.myShare()).isEqualTo(50.0);
 
-        assertThat(result).hasSize(2);
-        assertThat(result).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).hasSize(2);
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
 
-        double friendSum = result.stream().mapToDouble(TransactionSplit::amount).sum();
+        double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum).isEqualTo(100.0);
+    }
+
+    @Test
+    void splitCustom_withoutSelf_setsMyShareToZero() throws Exception {
+        UUID txnId = UUID.randomUUID();
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .amount(770.0)
+                .build();
+        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+
+        Map<Friend, Double> participants = new LinkedHashMap<>();
+        participants.put(alice, 200.0);
+        participants.put(bob, 570.0);
+
+        SplitInput input = SplitInput.builder()
+                .amount(770.0)
+                .strategy(SplitStrategy.CUSTOM)
+                .valuePerFriend(participants)
+                .build();
+
+        SplitResult result = splitService.split(txnId, input);
+
+        verify(transactionRepository).saveTransaction(txn);
+        assertThat(txn.getMyShare()).isEqualTo(0.0);
+        assertThat(result.myShare()).isEqualTo(0.0);
+        assertThat(result.splits()).hasSize(2);
+        double sum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
+        assertThat(sum).isEqualTo(770.0);
     }
 
     @Test
@@ -214,14 +246,15 @@ class SplitServiceTest {
                 .valuePerFriend(participants)
                 .build();
 
-        List<TransactionSplit> result = splitService.split(txnId, input);
+        SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
-        assertThat(result).hasSize(2);
-        assertThat(result).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).hasSize(2);
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
 
-        double friendSum = result.stream().mapToDouble(TransactionSplit::amount).sum();
+        double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
+        assertThat(result.myShare()).isEqualTo(txn.getMyShare());
     }
 
     @Test
@@ -268,14 +301,15 @@ class SplitServiceTest {
                 .valuePerFriend(participants)
                 .build();
 
-        List<TransactionSplit> result = splitService.split(txnId, input);
+        SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
-        assertThat(result).hasSize(2);
-        assertThat(result).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).hasSize(2);
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
 
-        double friendSum = result.stream().mapToDouble(TransactionSplit::amount).sum();
+        double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
+        assertThat(result.myShare()).isEqualTo(txn.getMyShare());
     }
 
     @Test
