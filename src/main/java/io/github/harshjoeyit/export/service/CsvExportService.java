@@ -54,7 +54,7 @@ public class CsvExportService {
         this.transactionRepository = transactionRepository;
     }
 
-    public void export(CsvExportInput csvExportInput, String profile, String outputDir) throws IllegalArgumentException {
+    public List<Path> export(CsvExportInput csvExportInput, String profile, String outputDir) throws IllegalArgumentException {
         if (csvExportInput.statementId() == null
                 && (csvExportInput.periodStartDate() == null || csvExportInput.periodEndDate() == null)) {
             throw new IllegalArgumentException("Either statement id of period start and end date required for export");
@@ -80,32 +80,43 @@ public class CsvExportService {
         // Fetch transactions
         List<NormalizedTransaction> transactions = findTransactions(csvExportInput);
         String outputDirToUse = outputDir != null && !outputDir.isBlank() ? outputDir : DEFAULT_EXPORT_DIR;
+        List<Path> exportedFiles = new ArrayList<>();
 
         if (exportProfile.isMulti()) {
-            writeFile(outputDirToUse, ExportType.PURCHASE.toString(),
+            Path purchase = writeFile(outputDirToUse, ExportType.PURCHASE.toString(),
                     exportProfile.multi().purchase(),
                     getFilteredTransactions(transactions, ExportType.PURCHASE), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
-            writeFile(outputDirToUse, ExportType.INCOME.toString(),
+            if (purchase != null) exportedFiles.add(purchase);
+
+            Path income = writeFile(outputDirToUse, ExportType.INCOME.toString(),
                     exportProfile.multi().income(),
                     getFilteredTransactions(transactions, ExportType.INCOME), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
-            writeFile(outputDirToUse, ExportType.INVEST.toString(),
+            if (income != null) exportedFiles.add(income);
+
+            Path invest = writeFile(outputDirToUse, ExportType.INVEST.toString(),
                     exportProfile.multi().investment(),
                     getFilteredTransactions(transactions, ExportType.INVEST), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
+            if (invest != null) exportedFiles.add(invest);
+
             if (exportProfile.multi().lendOrBorrowed() != null) {
-                writeFile(outputDirToUse, ExportType.LEND_OR_BORROWED.toString(),
+                Path lend = writeFile(outputDirToUse, ExportType.LEND_OR_BORROWED.toString(),
                         exportProfile.multi().lendOrBorrowed(),
                         getFilteredTransactions(transactions, ExportType.LEND_OR_BORROWED), exportProfile.categoryMapping(),
                         true, dateTimeFormatter);
+                if (lend != null) exportedFiles.add(lend);
             }
         } else {
-            writeFile(outputDirToUse, ExportType.CONSOLIDATED.toString(),
+            Path single = writeFile(outputDirToUse, ExportType.CONSOLIDATED.toString(),
                     exportProfile.single(),
                     transactions, exportProfile.categoryMapping(),
                     false, dateTimeFormatter);
+            if (single != null) exportedFiles.add(single);
         }
+
+        return exportedFiles;
     }
 
     // Find the transactions per provided export input
@@ -142,13 +153,13 @@ public class CsvExportService {
     }
 
     // Write to the export file
-    private void writeFile(String outputDir, String fileNamePrefix, ExportConfig.ColumnMappingConfig columnMappingConfig,
-                             List<NormalizedTransaction> transactions, Map<TxnCategory, String> categoryMapping,
-                             boolean useAbsAmount, DateTimeFormatter dateTimeFormatter) {
+    private Path writeFile(String outputDir, String fileNamePrefix, ExportConfig.ColumnMappingConfig columnMappingConfig,
+                           List<NormalizedTransaction> transactions, Map<TxnCategory, String> categoryMapping,
+                           boolean useAbsAmount, DateTimeFormatter dateTimeFormatter) {
 
         if (transactions.isEmpty()) {
             log.warn("No {} transactions found", fileNamePrefix);
-            return;
+            return null;
         }
 
         Path outputFilePath = createFile(fileNamePrefix, outputDir);
@@ -175,8 +186,10 @@ public class CsvExportService {
             }
 
             log.info("CSV file saved successfully at: {}", outputFilePath);
+            return outputFilePath;
         } catch (IOException e) {
             log.error("Failed to write to csv file: {}", outputFilePath, e);
+            return null;
         }
     }
 
@@ -213,7 +226,8 @@ public class CsvExportService {
     ) throws UnsupportedOperationException {
         return switch (token.toLowerCase()) {
             case "title" -> getTxnTitle(txn);
-            case "amount" -> String.valueOf(getTxnAmount(txn, useAbsAmount));
+            case "amount", "myshare" -> String.valueOf(getTxnAmount(txn, useAbsAmount));
+            case "total_amount" -> String.valueOf(getTotalAmount(txn, useAbsAmount));
             case "date" -> txn.getDatetime() != null ? dateTimeFormatter.format(txn.getDatetime()) : "";
             case "category" -> getUserDefinedCategory(categoryMapping, txn.getCategory());
             case "source" -> txn.getCounterparty() != null ? txn.getCounterparty() : "";
@@ -257,12 +271,23 @@ public class CsvExportService {
     }
 
     private double getTxnAmount(NormalizedTransaction txn, boolean useAbsAmount) {
+        double amount = txn.getMyShare() != null ? txn.getMyShare() : txn.getAmount();
+        if (useAbsAmount) {
+            return amount;
+        }
+
+        return txn.getDirection().equals(TxnDirection.CREDIT)
+                  ? amount
+                  : -1 * amount;
+    }
+
+    private double getTotalAmount(NormalizedTransaction txn, boolean useAbsAmount) {
         if (useAbsAmount) {
             return txn.getAmount(); // txn always stores absolute amount
         }
 
         return txn.getDirection().equals(TxnDirection.CREDIT)
-                  ? txn.getAmount()
-                  : -1 * txn.getAmount();
+                ? txn.getAmount()
+                : -1 * txn.getAmount();
     }
 }

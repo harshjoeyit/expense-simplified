@@ -42,6 +42,7 @@ import org.springframework.shell.table.TableBuilder;
 import org.springframework.shell.table.TableModel;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -366,8 +367,18 @@ public class StatementCommands extends AbstractShellComponent {
                 .build();
 
         try {
-            csvExportService.export(input, profile, outputDir);
-            return "✓ Export completed successfully to " + (outputDir != null ? outputDir : "./export");
+            List<Path> exportedFiles = csvExportService.export(input, profile, outputDir);
+            if (exportedFiles.isEmpty()) {
+                return "No reviewed transactions found to export.";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("✓ Export completed successfully:\n");
+            for (Path path : exportedFiles) {
+                sb.append("  • ").append(path.getFileName())
+                        .append(" (").append(path.toAbsolutePath().normalize()).append(")\n");
+            }
+            return sb.toString().trim();
         } catch (IllegalArgumentException e) {
             return "Export failed: " + e.getMessage();
         } catch (Exception e) {

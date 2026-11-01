@@ -320,6 +320,40 @@ class CsvExportServiceTest {
     }
 
     @Test
+    void shouldExportMyShareInsteadOfTotalAmountWhenTransactionIsSplit() throws IOException {
+        // Given: Transaction with total amount 1000.0, but user's split share is 400.0
+        NormalizedTransaction splitTxn = NormalizedTransaction.builder()
+                .id(UUID.randomUUID())
+                .statementId(statementId)
+                .type(TxnType.PURCHASE)
+                .category(TxnCategory.FOOD)
+                .amount(1000.0)
+                .myShare(400.0)
+                .direction(TxnDirection.DEBIT)
+                .datetime(LocalDateTime.of(2026, 10, 5, 12, 0))
+                .counterparty("Dinner Party")
+                .reviewStatus(TxnReviewStatus.MANUAL_REVIEWED)
+                .mode(TxnMode.UPI)
+                .build();
+
+        transactionRepository.saveTransaction(splitTxn);
+
+        CsvExportInput input = CsvExportInput.builder().statementId(statementId).build();
+        exportService.export(input, "default", tempDir.toString());
+
+        List<Path> files;
+        try (Stream<Path> stream = Files.list(tempDir)) {
+            files = stream.toList();
+        }
+        assertThat(files).hasSize(1);
+        List<String> lines = Files.readAllLines(files.get(0));
+
+        // The "Amount" column should reflect myShare (400.0), NOT total amount (1000.0)
+        assertThat(lines.get(1)).contains("400.0");
+        assertThat(lines.get(1)).doesNotContain("1000.0");
+    }
+
+    @Test
     void shouldThrowExceptionWhenInputIsInvalid() {
         // Neither statementId nor date range
         CsvExportInput emptyInput = CsvExportInput.builder().build();

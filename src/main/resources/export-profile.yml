@@ -7,10 +7,10 @@ profiles:
         columns:
           # Key: User-Defined. CSV Column Header
           # Value: Dictates which piece of data to pull from Transaction.
-          #     Canonical tokens: title, amount, date, category, source, id, direction, instrument, statement_id, remarks, reference, mode, type
+          #     Canonical tokens: title, amount, myshare, total_amount, date, category, source, id, direction, instrument, statement_id, remarks, reference, mode, type
 
           "Title": "title"                  # CSV Header = "Title",              Data = title fallback logic
-          "Amount": "amount"                # CSV Header = "Amount",             Data = txn.getAmount()
+          "Amount": "amount"                # CSV Header = "Amount",             Data = txn.getMyShare()
           "Date": "date"                    # CSV Header = "Date",               Data = txn.getDatetime()
           "Tags": "category"                # CSV Header = "Tags",               Data = mapped category
           "Txn Id": "id"                    # CSV Header = "Txn ID",             Data = txn.getId()

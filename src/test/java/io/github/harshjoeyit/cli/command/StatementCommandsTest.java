@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -206,5 +207,31 @@ class StatementCommandsTest {
                 .doesNotContain("Cross-Instrument")
                 .contains("StatementId: " + newStmtId)
                 .contains("Parsed 1 transactions");
+    }
+
+    @Test
+    @DisplayName("export displays generated file names and absolute paths")
+    void export_whenFilesCreated_returnsFormattedFileNamesAndPaths() {
+        UUID stmtId = UUID.randomUUID();
+        Path fakeExport = Path.of("./export/PURCHASE_1793543542.csv");
+        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(List.of(fakeExport));
+
+        String output = commands.export(stmtId, null, null, "default", "./export");
+
+        assertThat(output)
+                .contains("Export completed successfully:")
+                .contains("PURCHASE_1793543542.csv")
+                .contains(fakeExport.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    @DisplayName("export when no files created returns informative message")
+    void export_whenNoFilesCreated_returnsNoTransactionsMessage() {
+        UUID stmtId = UUID.randomUUID();
+        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(List.of());
+
+        String output = commands.export(stmtId, null, null, "default", "./export");
+
+        assertThat(output).isEqualTo("No reviewed transactions found to export.");
     }
 }
