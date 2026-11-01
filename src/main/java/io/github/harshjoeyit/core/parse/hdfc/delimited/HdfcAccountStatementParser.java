@@ -41,7 +41,7 @@ public class HdfcAccountStatementParser implements Parser {
     }
 
     @Override
-    public List<NormalizedTransaction> parseDelimited(BufferedReader reader, String instrumentId, UUID statementId)
+    public List<NormalizedTransaction> parseDelimited(BufferedReader reader)
             throws IOException, IllegalArgumentException, UnsupportedNarrationException, MalformedNarrationException {
 
         CSVFormat format = CSVFormat.DEFAULT.builder()
@@ -91,8 +91,6 @@ public class HdfcAccountStatementParser implements Parser {
 
                     // Depend on mapping - category, counterpartyId, instrumentId
                     NormalizedTransaction txn = NormalizedTransaction.builder()
-                            .instrumentId(instrumentId)
-                            .statementId(statementId)
                             .datetime(datetime)
                             .valueDatetime(valueDateTime)
                             .amount(amount)

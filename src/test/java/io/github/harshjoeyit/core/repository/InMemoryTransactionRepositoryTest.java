@@ -100,4 +100,35 @@ class InMemoryTransactionRepositoryTest {
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).getId()).isEqualTo(pendingStmt1.getId());
     }
+
+    @Test
+    void findByDateRange_returnsTransactionsWithinRangeSortedByDatetime() {
+        NormalizedTransaction t1 = NormalizedTransaction.builder()
+                .datetime(LocalDateTime.parse("2024-08-01T10:00:00"))
+                .amount(100.0)
+                .build();
+        NormalizedTransaction t2 = NormalizedTransaction.builder()
+                .datetime(LocalDateTime.parse("2024-08-15T15:30:00"))
+                .amount(200.0)
+                .build();
+        NormalizedTransaction t3 = NormalizedTransaction.builder()
+                .datetime(LocalDateTime.parse("2024-08-31T20:00:00"))
+                .amount(300.0)
+                .build();
+        NormalizedTransaction outOfRange = NormalizedTransaction.builder()
+                .datetime(LocalDateTime.parse("2024-09-01T00:00:00"))
+                .amount(400.0)
+                .build();
+
+        repository.saveTransactions(List.of(t3, t1, outOfRange, t2));
+
+        List<NormalizedTransaction> result = repository.findByDateRange(
+                LocalDateTime.parse("2024-08-01T00:00:00"),
+                LocalDateTime.parse("2024-08-31T23:59:59")
+        );
+
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(NormalizedTransaction::getAmount)
+                .containsExactly(100.0, 200.0, 300.0);
+    }
 }

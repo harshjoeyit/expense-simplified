@@ -63,6 +63,20 @@ public class InMemoryTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<NormalizedTransaction> findByDateRange(LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null) {
+            return List.of();
+        }
+        return transactions.values()
+                .stream()
+                .filter(t -> t.getDatetime() != null
+                        && !t.getDatetime().isBefore(start)
+                        && !t.getDatetime().isAfter(end))
+                .sorted(Comparator.comparing(NormalizedTransaction::getDatetime))
+                .toList();
+    }
+
+    @Override
     public void saveTransaction(NormalizedTransaction transaction) {
         if (transaction == null || transaction.getId() == null) {
             log.warn("Cannot save a null or save transaction without Id");

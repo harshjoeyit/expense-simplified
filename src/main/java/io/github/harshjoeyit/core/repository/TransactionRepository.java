@@ -2,6 +2,7 @@ package io.github.harshjoeyit.core.repository;
 
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,7 @@ public interface TransactionRepository {
     List<NormalizedTransaction> findByStatementId(UUID statementId);
     List<NormalizedTransaction> findPendingReviewTransactionsByStatementId(UUID statementId);
     List<NormalizedTransaction> findReviewedTransactionsByStatementId(UUID statementId);
+    List<NormalizedTransaction> findByDateRange(LocalDateTime start, LocalDateTime end);
     void saveTransaction(NormalizedTransaction transaction);
 
     default void saveTransactions(List<NormalizedTransaction> transactions) {

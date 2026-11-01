@@ -1,5 +1,7 @@
 package io.github.harshjoeyit.cli.command;
 
+import io.github.harshjoeyit.core.dedup.DeduplicationResult;
+import io.github.harshjoeyit.core.dedup.StatementOverlapSummary;
 import io.github.harshjoeyit.core.exception.DuplicateMappingRuleException;
 import io.github.harshjoeyit.core.exception.InvalidMappingRule;
 import io.github.harshjoeyit.core.exception.InvalidStatementId;
@@ -10,6 +12,7 @@ import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
 import io.github.harshjoeyit.export.model.CsvExportInput;
 import io.github.harshjoeyit.export.service.CsvExportService;
+import io.github.harshjoeyit.model.StatementImportResult;
 import io.github.harshjoeyit.service.InstrumentService;
 import io.github.harshjoeyit.service.ReviewService;
 import io.github.harshjoeyit.service.StatementService;
@@ -115,18 +118,56 @@ public class StatementCommands extends AbstractShellComponent {
         log.info("Using statement type: {}", statementType);
 
         try {
-            // Create a statement
-            Statement statement = statementService.createStatement(FileType.DELIMITED, file.getName(), instrumentId);
+            StatementImportResult statementImportResult = statementService.importStatement(
+                    file, FileType.DELIMITED, statementType.get(), instrumentId);
 
-            // Parse transactions
-            List<NormalizedTransaction> transactions = statementService.parseStatement(
-                    file, FileType.DELIMITED, statementType.get(), instrumentId, statement.id());
+            DeduplicationResult dedupResult = statementImportResult.dedupResult();
 
-            if (transactions.isEmpty()) {
+            // Cross-Instrument Collision
+            if (dedupResult != null && dedupResult.hasCrossInstrumentCollision()) {
+                return String.format("%n⚠️  Cross-Instrument Collision Detected!%n"
+                                + "All transactions in this file already exist under instrument '%s'.%n"
+                                + "Selected instrument: '%s'.%n"
+                                + "Statement was not saved. Please verify the instrument.%n",
+                        dedupResult.crossInstrumentCollision(), instrumentId);
+            }
+
+            // 100% Duplicate Statement
+            if (dedupResult != null && dedupResult.isFullDuplicate()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("%n⚠️  Duplicate Statement: All %d transactions have already been imported!%n",
+                        dedupResult.duplicates().size()));
+                if (dedupResult.statementSummaries() != null && !dedupResult.statementSummaries().isEmpty()) {
+                    sb.append(renderDuplicatesTable(dedupResult.statementSummaries())).append("\n");
+                }
+                sb.append("Statement was not saved. No new transactions to import.\n");
+                return sb.toString();
+            }
+
+            // No new transactions. Partial duplicates or statement had no transactions at all
+            if (statementImportResult.newTransactions().isEmpty()) {
                 return "No transactions found in " + file.getName();
             }
 
-            return renderTable(transactions, file.getName(), statementType.get());
+            int dupCount = dedupResult != null && dedupResult.duplicates() != null ? dedupResult.duplicates().size() : 0;
+            int newCount = statementImportResult.newTransactions().size();
+            int totalInFile = dupCount + newCount;
+
+            StringBuilder sb = new StringBuilder();
+            if (dupCount > 0) {
+                sb.append(String.format("%nTransactions Summary:%n"
+                                + "  • Total in file: %d%n"
+                                + "  • Duplicates skipped: %d (already recorded in database)%n"
+                                + "  • New transactions imported: %d%n%n",
+                        totalInFile, dupCount, newCount));
+                if (dedupResult.statementSummaries() != null && !dedupResult.statementSummaries().isEmpty()) {
+                    sb.append(renderDuplicatesTable(dedupResult.statementSummaries())).append("\n");
+                }
+            }
+
+            // render new transactions
+            sb.append(renderTable(statementImportResult.newTransactions(), file.getName(), statementType.get(), totalInFile, dupCount));
+            return sb.toString();
         } catch (Exception e) {
             log.error("Error parsing statement", e);
             return "Error parsing statement: " + e.getMessage();
@@ -719,7 +760,7 @@ public class StatementCommands extends AbstractShellComponent {
         }
     }
 
-    private String renderTable(List<NormalizedTransaction> transactions, String filename, StatementType type) {
+    private String renderTable(List<NormalizedTransaction> transactions, String filename, StatementType type, int totalInFile, int duplicatesSkipped) {
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
         // Prepare 2D data grid: (N + 1) rows, 7 columns
@@ -759,11 +800,16 @@ public class StatementCommands extends AbstractShellComponent {
 //        return String.format("%nParsed %d transactions from %s (%s):%n%n%s%n%s%n",
 //                transactions.size(), filename, type, statementId, renderedTable);
 
-        int total = transactions.size();
+        int newTotal = transactions.size();
         int pendingReview = reviewService.findPendingReviewTransaction(statementId).size();
 
-        return String.format("%nStatementId: %s%nParsed %d transactions from %s (%s).%n[%s/%s] need review %n",
-                statementId, total, filename, type, pendingReview, total);
+        if (duplicatesSkipped > 0) {
+            return String.format("%nStatementId: %s%nImported %d new transaction(s) (out of %d in file) from %s (%s).%n[%d/%d] need review%n",
+                    statementId, newTotal, totalInFile, filename, type, pendingReview, newTotal);
+        } else {
+            return String.format("%nStatementId: %s%nParsed %d transactions from %s (%s).%n[%d/%d] need review%n",
+                    statementId, newTotal, filename, type, pendingReview, newTotal);
+        }
     }
 
     private String renderStatementsTable(List<StatementService.StatementSummary> summaries) {
@@ -799,5 +845,31 @@ public class StatementCommands extends AbstractShellComponent {
 
         return String.format("%nStatements (%d shown):%n%s%n",
                 summaries.size(), tableBuilder.build().render(140));
+    }
+
+    private String renderDuplicatesTable(List<StatementOverlapSummary> summaries) {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        String[][] data = new String[summaries.size() + 1][4];
+        data[0] = new String[]{"Existing Statement ID", "Instrument", "Duplicates", "Overlapping Period"};
+
+        for (int i = 0; i < summaries.size(); i++) {
+            StatementOverlapSummary summary = summaries.get(i);
+            String period = (summary.minDate() != null && summary.maxDate() != null)
+                    ? summary.minDate().format(dtf) + " to " + summary.maxDate().format(dtf)
+                    : "-";
+
+            data[i + 1] = new String[]{
+                    summary.statementId() != null ? summary.statementId().toString() : "-",
+                    summary.instrumentId() != null ? summary.instrumentId() : "-",
+                    String.valueOf(summary.duplicateCount()),
+                    period
+            };
+        }
+
+        TableModel model = new ArrayTableModel(data);
+        TableBuilder tableBuilder = new TableBuilder(model);
+        tableBuilder.addFullBorder(BorderStyle.fancy_light);
+        return tableBuilder.build().render(120);
     }
 }

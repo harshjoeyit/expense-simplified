@@ -1,6 +1,8 @@
 package io.github.harshjoeyit.service;
 
 import io.github.harshjoeyit.cli.command.StatementType;
+import io.github.harshjoeyit.core.dedup.DeduplicationResult;
+import io.github.harshjoeyit.core.dedup.TransactionDeduplicationEngine;
 import io.github.harshjoeyit.core.mapping.TransactionMapper;
 import io.github.harshjoeyit.core.model.FileType;
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
@@ -11,6 +13,7 @@ import io.github.harshjoeyit.core.parse.hdfc.delimited.HdfcCreditCardStatementPa
 import io.github.harshjoeyit.core.parse.scapia.delimited.ScapiaCreditCardStatementParser;
 import io.github.harshjoeyit.core.repository.StatementRepository;
 import io.github.harshjoeyit.core.repository.TransactionRepository;
+import io.github.harshjoeyit.model.StatementImportResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +22,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +34,7 @@ public class StatementService {
     private final ScapiaCreditCardStatementParser scapiaCreditCardParser;
     private final StatementRepository statementRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionDeduplicationEngine deduplicationEngine;
     private final TransactionMapper mapper;
 
     public StatementService(
@@ -40,30 +43,56 @@ public class StatementService {
             ScapiaCreditCardStatementParser scapiaCreditCardParser,
             TransactionMapper mapper,
             StatementRepository statementRepository,
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            TransactionDeduplicationEngine deduplicationEngine) {
         this.hdfcAccountParser = hdfcAccountParser;
         this.hdfcCreditCardParser = hdfcCreditCardParser;
         this.scapiaCreditCardParser = scapiaCreditCardParser;
         this.mapper = mapper;
         this.statementRepository = statementRepository;
         this.transactionRepository = transactionRepository;
+        this.deduplicationEngine = deduplicationEngine;
     }
 
-    public Statement createStatement(FileType fileType, String filepath, String instrumentId) {
-        Statement statement = Statement.builder()
-                .fileType(fileType)
-                .filePath(filepath)
-                .instrumentId(instrumentId)
-                .createdAt(LocalDateTime.now())
-                .build();
+    public StatementImportResult importStatement(
+            File file, FileType fileType, StatementType type, String instrumentId
+    ) throws IOException {
 
-        statementRepository.saveStatement(statement);
+        // Parse
+        List<NormalizedTransaction> incomingTxns = parseStatement(file, fileType, type);
 
-        return statement;
+        // Check for duplicates
+        DeduplicationResult dedupResult = deduplicationEngine.deduplicate(instrumentId, incomingTxns);
+
+        Statement newStatement = null;
+
+        if (!dedupResult.hasCrossInstrumentCollision()
+                && !dedupResult.isFullDuplicate()
+                && !dedupResult.newTransactions().isEmpty()
+        ) {
+            // Create new statement
+            newStatement = createStatement(fileType, file, instrumentId);
+            UUID statementId = newStatement.id();
+
+            // Link new transactions to this statement and instrument
+            List<NormalizedTransaction> newTxns = dedupResult.newTransactions();
+            newTxns.forEach(txn -> {
+                txn.setInstrumentId(instrumentId);
+                txn.setStatementId(statementId);
+            });
+
+            // Enrich and persist new transactions
+            List<NormalizedTransaction> enrichedTxns = mapper.enrich(newTxns);
+            transactionRepository.saveTransactions(enrichedTxns);
+        }
+
+        return new StatementImportResult(newStatement, dedupResult);
     }
 
-    public List<NormalizedTransaction> parseStatement(File file, FileType fileType,
-                                                      StatementType type, String instrumentId, UUID statementId) throws IOException {
+    private List<NormalizedTransaction> parseStatement(
+            File file, FileType fileType, StatementType type
+    ) throws IOException  {
+
         Parser parser = switch (type) {
             case HDFC_ACC -> hdfcAccountParser;
             case HDFC_CC -> hdfcCreditCardParser;
@@ -71,14 +100,29 @@ public class StatementService {
         };
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            List<NormalizedTransaction> transactions =  new ArrayList<>();
             if (fileType == FileType.DELIMITED) {
-                transactions = parser.parseDelimited(reader, instrumentId, statementId);
+                return parser.parseDelimited(reader);
+            } else {
+                throw new UnsupportedOperationException("Not implemented fileType: " + fileType);
             }
-            List<NormalizedTransaction> enrichedTransactions = mapper.enrich(transactions);
-            transactionRepository.saveTransactions(enrichedTransactions);
-            return enrichedTransactions;
         }
+    }
+
+    private Statement createStatement(FileType fileType, File file, String instrumentId) {
+        if (fileType == null || file == null || instrumentId == null || instrumentId.isBlank()) {
+            return null;
+        }
+
+        Statement statement = Statement.builder()
+                .fileType(fileType)
+                .filePath(file.getAbsolutePath())
+                .instrumentId(instrumentId)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        statementRepository.saveStatement(statement);
+
+        return statement;
     }
 
     public record StatementSummary(

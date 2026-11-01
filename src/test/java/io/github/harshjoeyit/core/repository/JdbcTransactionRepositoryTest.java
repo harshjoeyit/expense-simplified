@@ -194,4 +194,32 @@ class JdbcTransactionRepositoryTest {
         assertThat(reviewed.get(0).getId()).isEqualTo(manualReviewed.getId());
         assertThat(reviewed.get(1).getId()).isEqualTo(autoReviewed.getId());
     }
+
+    @Test
+    void findByDateRange_returnsTransactionsWithinRangeSortedByDatetime() {
+        LocalDateTime t1Time = LocalDateTime.parse("2024-08-01T10:00:00");
+        LocalDateTime t2Time = LocalDateTime.parse("2024-08-15T15:30:00");
+        LocalDateTime t3Time = LocalDateTime.parse("2024-08-31T20:00:00");
+        LocalDateTime outTime = LocalDateTime.parse("2024-09-01T00:00:00");
+
+        NormalizedTransaction t1 = buildSampleTransaction(UUID.randomUUID(), t1Time, TxnReviewStatus.PENDING);
+        t1.setAmount(100.0);
+        NormalizedTransaction t2 = buildSampleTransaction(UUID.randomUUID(), t2Time, TxnReviewStatus.PENDING);
+        t2.setAmount(200.0);
+        NormalizedTransaction t3 = buildSampleTransaction(UUID.randomUUID(), t3Time, TxnReviewStatus.PENDING);
+        t3.setAmount(300.0);
+        NormalizedTransaction outOfRange = buildSampleTransaction(UUID.randomUUID(), outTime, TxnReviewStatus.PENDING);
+        outOfRange.setAmount(400.0);
+
+        transactionRepository.saveTransactions(List.of(t3, t1, outOfRange, t2));
+
+        List<NormalizedTransaction> result = transactionRepository.findByDateRange(
+                LocalDateTime.parse("2024-08-01T00:00:00"),
+                LocalDateTime.parse("2024-08-31T23:59:59")
+        );
+
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(NormalizedTransaction::getAmount)
+                .containsExactly(100.0, 200.0, 300.0);
+    }
 }

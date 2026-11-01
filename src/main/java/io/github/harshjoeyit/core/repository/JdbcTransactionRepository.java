@@ -117,6 +117,23 @@ public class JdbcTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<NormalizedTransaction> findByDateRange(LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null) {
+            return List.of();
+        }
+        return jdbcClient
+                .sql("""
+                        SELECT * FROM transactions
+                        WHERE datetime >= :start AND datetime <= :end
+                        ORDER BY datetime ASC
+                        """)
+                .param("start", start.toString())
+                .param("end", end.toString())
+                .query(ROW_MAPPER)
+                .list();
+    }
+
+    @Override
     public void saveTransaction(NormalizedTransaction transaction) {
         if (transaction == null || transaction.getId() == null) {
             log.warn("Cannot save a null or save transaction without Id");
