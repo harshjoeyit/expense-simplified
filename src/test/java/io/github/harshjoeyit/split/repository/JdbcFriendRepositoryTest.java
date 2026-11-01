@@ -140,4 +140,33 @@ class JdbcFriendRepositoryTest {
         List<Friend> all = customRepo.findAll();
         assertThat(all).hasSize(2);
     }
+
+    @Test
+    void init_restartsDoNotAdvanceSqliteSequence() {
+        FriendConfig.FriendConfigEntry seed1 = new FriendConfig.FriendConfigEntry("Seed Friend 1", 9999L);
+        FriendConfig.FriendConfigEntry seed2 = new FriendConfig.FriendConfigEntry("Seed Friend 2", null);
+
+        FriendConfig customConfig = new FriendConfig(List.of(seed1, seed2));
+        JdbcFriendRepository customRepo = new JdbcFriendRepository(jdbcClient, customConfig);
+
+        customRepo.init();
+
+        Integer seqAfterFirstInit = jdbcClient.sql("SELECT seq FROM sqlite_sequence WHERE name = 'friends'")
+                .query(Integer.class)
+                .single();
+
+        // Re-run init multiple times simulating app restarts
+        customRepo.init();
+        customRepo.init();
+
+        Integer seqAfterSubsequentInits = jdbcClient.sql("SELECT seq FROM sqlite_sequence WHERE name = 'friends'")
+                .query(Integer.class)
+                .single();
+
+        assertThat(seqAfterSubsequentInits).isEqualTo(seqAfterFirstInit);
+
+        // Verify next saved friend has contiguous id
+        Friend nextFriend = customRepo.save(Friend.of("Next Friend"));
+        assertThat(nextFriend.id()).isEqualTo(seqAfterFirstInit + 1);
+    }
 }

@@ -56,6 +56,10 @@ public class JdbcFriendRepository implements FriendRepository {
                 log.warn("Invalid friend: {}. Skipping to load in database", friend);
                 continue;
             }
+            if (existsByName(friend.name())) {
+                log.debug("Friend {} already exists in database, skipping seed insert", friend.name());
+                continue;
+            }
             jdbcClient.sql(sql)
                     .param("name", friend.name().trim())
                     .param("splitwiseId", friend.splitwiseId())
