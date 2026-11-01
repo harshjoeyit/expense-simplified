@@ -222,4 +222,19 @@ class JdbcTransactionRepositoryTest {
         assertThat(result).extracting(NormalizedTransaction::getAmount)
                 .containsExactly(100.0, 200.0, 300.0);
     }
+
+    @Test
+    void saveTransaction_whenTypeIsNull_persistsSuccessfullyWithoutConstraintViolation() {
+        UUID txnId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        NormalizedTransaction txn = buildSampleTransaction(txnId, now, TxnReviewStatus.PENDING);
+        txn.setType(null); // Unassigned type from bank account statement before review
+
+        transactionRepository.saveTransaction(txn);
+
+        Optional<NormalizedTransaction> found = transactionRepository.findById(txnId);
+        assertThat(found).isPresent();
+        assertThat(found.get().getType()).isNull();
+        assertThat(found.get().getReviewStatus()).isEqualTo(TxnReviewStatus.PENDING);
+    }
 }

@@ -25,6 +25,7 @@ public class JdbcTransactionRepository implements TransactionRepository {
 
     private static final RowMapper<NormalizedTransaction> ROW_MAPPER = (rs, rowNum) -> {
         String valueDatetimeStr = rs.getString("value_datetime");
+        String typeStr = rs.getString("type");
         String modeStr = rs.getString("mode");
         String categoryStr = rs.getString("category");
         String counterpartyTypeStr = rs.getString("counterparty_type");
@@ -39,7 +40,7 @@ public class JdbcTransactionRepository implements TransactionRepository {
                 .amount(rs.getDouble("amount"))
                 .myShare(myShareStr != null ? rs.getDouble("my_share") : null)
                 .direction(TxnDirection.valueOf(rs.getString("direction")))
-                .type(TxnType.valueOf(rs.getString("type")))
+                .type(typeStr != null ? TxnType.valueOf(typeStr) : null)
                 .mode(modeStr != null ? TxnMode.valueOf(modeStr) : null)
                 .category(categoryStr != null ? TxnCategory.valueOf(categoryStr) : null)
                 .counterparty(rs.getString("counterparty"))
