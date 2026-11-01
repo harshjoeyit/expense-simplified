@@ -162,7 +162,12 @@ public class StatementCommands extends AbstractShellComponent {
 
             int i = 0;
             while (i < transactions.size()) {
-                NormalizedTransaction txn = transactions.get(i);
+                // Load the transaction from database again, so that in-memory copy is not adrift from database
+                // and CLI always reflects latest persisted transaction and
+                UUID currentTxnId = transactions.get(i).getId();
+                NormalizedTransaction txn = reviewService.getTransaction(currentTxnId)
+                        .orElse(transactions.get(i));
+                transactions.set(i, txn);
 
                 String dir = txn.getDirection() == TxnDirection.CREDIT ? "Cr" : "Dr";
 
@@ -446,11 +451,6 @@ public class StatementCommands extends AbstractShellComponent {
 
         try {
             SplitResult splitResult = splitService.split(txn.getId(), splitInput);
-
-            // Before split, txn.myShare = txn.Amount. After split, this value will change.
-            // Hence, update the in-memory transaction so that user can see updated - myShare
-            txn.setMyShare(splitResult.myShare());
-
             writer.println(String.format("%n✓ Split saved successfully!"));
             writer.println(String.format("  • Your share: ₹%.2f", splitResult.myShare()));
             for (TransactionSplit split : splitResult.splits()) {
@@ -602,7 +602,6 @@ public class StatementCommands extends AbstractShellComponent {
                 return;
             }
             txnType = TxnType.valueOf(selectedType.get());
-            txn.setType(txnType);
         }
 
         // Ensure Category is present if required by Type
@@ -616,10 +615,8 @@ public class StatementCommands extends AbstractShellComponent {
                     return;
                 }
                 txnCategory = TxnCategory.valueOf(selectedCategory.get());
-                txn.setCategory(txnCategory);
             } else {
                 txnCategory = null;
-                txn.setCategory(null);
             }
         }
 

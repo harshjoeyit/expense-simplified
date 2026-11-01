@@ -457,4 +457,34 @@ class ReviewServiceTest {
         verifyNoInteractions(statementRepository);
         verifyNoInteractions(mappingRuleRepository);
     }
+
+    @Test
+    void getTransaction_whenFound_returnsTransaction() {
+        UUID txnId = UUID.randomUUID();
+        NormalizedTransaction txn = NormalizedTransaction.builder().id(txnId).build();
+        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+
+        Optional<NormalizedTransaction> result = reviewService.getTransaction(txnId);
+
+        assertThat(result).isPresent().contains(txn);
+        verify(transactionRepository).findById(txnId);
+    }
+
+    @Test
+    void getTransaction_whenNotFound_returnsEmpty() {
+        UUID txnId = UUID.randomUUID();
+        when(transactionRepository.findById(txnId)).thenReturn(Optional.empty());
+
+        Optional<NormalizedTransaction> result = reviewService.getTransaction(txnId);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTransaction_nullId_returnsEmptyWithoutQueryingRepository() {
+        Optional<NormalizedTransaction> result = reviewService.getTransaction(null);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(transactionRepository);
+    }
 }

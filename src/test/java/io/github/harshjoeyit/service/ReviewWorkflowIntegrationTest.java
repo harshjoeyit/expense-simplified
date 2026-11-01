@@ -213,4 +213,55 @@ class ReviewWorkflowIntegrationTest {
         NormalizedTransaction resolved = transactionRepository.findById(txn.getId()).get();
         assertThat(resolved.getReviewStatus()).isEqualTo(TxnReviewStatus.MANUAL_REVIEWED);
     }
+
+    @Test
+    void saveRule_doesNotMutatePendingTransactionInRepository() {
+        UUID statementId = UUID.randomUUID();
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .statementId(statementId)
+                .counterparty("Amazon Seller Services")
+                .type(null)
+                .category(null)
+                .reviewStatus(TxnReviewStatus.PENDING)
+                .build();
+        transactionRepository.saveTransaction(txn);
+
+        // Act: Save a mapping rule for this counterparty name
+        SaveRule saveRule = SaveRule.builder()
+                .saveRuleByType(SaveRule.SaveRuleByType.COUNTERPARTY_NAME)
+                .id("Amazon Seller Services")
+                .autoReview(true)
+                .build();
+        reviewService.saveRule(saveRule, TxnType.PURCHASE, TxnCategory.SHOPPING);
+
+        // Assert: The mapping rule is created in repository
+        assertThat(mappingRuleRepository.findByCounterpartyName("Amazon Seller Services")).isPresent();
+
+        // But the pending transaction in repository must NOT be mutated
+        NormalizedTransaction reloaded = reviewService.getTransaction(txn.getId()).orElseThrow();
+        assertThat(reloaded.getType()).isNull();
+        assertThat(reloaded.getCategory()).isNull();
+        assertThat(reloaded.getReviewStatus()).isEqualTo(TxnReviewStatus.PENDING);
+    }
+
+    @Test
+    void getTransaction_returnsFreshDatabaseStateAcrossMutations() {
+        UUID statementId = UUID.randomUUID();
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .statementId(statementId)
+                .amount(500.0)
+                .reviewStatus(TxnReviewStatus.PENDING)
+                .build();
+        transactionRepository.saveTransaction(txn);
+
+        // Initially myShare defaults to amount
+        assertThat(reviewService.getTransaction(txn.getId()).get().getMyShare()).isEqualTo(500.0);
+
+        // Mutate transaction (e.g., simulating a split updating myShare to 200.0)
+        txn.setMyShare(200.0);
+        transactionRepository.saveTransaction(txn);
+
+        // getTransaction returns the fresh database state
+        assertThat(reviewService.getTransaction(txn.getId()).get().getMyShare()).isEqualTo(200.0);
+    }
 }

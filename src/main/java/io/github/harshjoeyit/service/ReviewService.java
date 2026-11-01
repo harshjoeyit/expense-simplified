@@ -54,6 +54,13 @@ public class ReviewService {
         return transactionRepository.findPendingReviewTransactionsByStatementId(st.id());
     }
 
+    public Optional<NormalizedTransaction> getTransaction(UUID txnId) {
+        if (txnId == null) {
+            return Optional.empty();
+        }
+        return transactionRepository.findById(txnId);
+    }
+
     // Updates the transaction with provided inputs
     public void resolveTransaction(UUID txnId, TxnType txnType, TxnCategory txnCategory, String reviewRemark,
                                    SaveRule saveRule) throws InvalidTransactionId, InvalidStatementId, UnsupportedOperationException {
