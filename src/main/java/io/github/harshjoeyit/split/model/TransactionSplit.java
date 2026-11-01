@@ -10,7 +10,7 @@ import java.util.UUID;
 public record TransactionSplit(
         UUID id,
         UUID transactionId,
-        String friendId,
+        Integer friendId,
         String friendName,
         double amount,
         SplitStrategy strategy,

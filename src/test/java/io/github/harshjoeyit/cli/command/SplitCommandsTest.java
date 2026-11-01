@@ -63,7 +63,7 @@ class SplitCommandsTest {
         TransactionSplit split = TransactionSplit.builder()
                 .id(splitId)
                 .transactionId(txnId)
-                .friendId("ankit")
+                .friendId(1)
                 .friendName("Ankit")
                 .amount(250.00)
                 .strategy(SplitStrategy.EQUAL)

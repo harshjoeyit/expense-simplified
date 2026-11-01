@@ -14,12 +14,12 @@ import io.github.harshjoeyit.service.InstrumentService;
 import io.github.harshjoeyit.service.ReviewService;
 import io.github.harshjoeyit.service.StatementService;
 import io.github.harshjoeyit.split.InvalidSplitException;
-import io.github.harshjoeyit.split.config.FriendConfig;
 import io.github.harshjoeyit.split.model.Friend;
 import io.github.harshjoeyit.split.model.SplitInput;
 import io.github.harshjoeyit.split.model.SplitResult;
 import io.github.harshjoeyit.split.model.SplitStrategy;
 import io.github.harshjoeyit.split.model.TransactionSplit;
+import io.github.harshjoeyit.split.service.FriendService;
 import io.github.harshjoeyit.split.service.SplitService;
 import lombok.extern.slf4j.Slf4j;
 import org.jline.keymap.BindingReader;
@@ -56,7 +56,7 @@ public class StatementCommands extends AbstractShellComponent {
     private final ReviewService reviewService;
     private final CsvExportService csvExportService;
     private final SplitService splitService;
-    private final FriendConfig friendConfig;
+    private final FriendService friendService;
 
     public StatementCommands(
             StatementService statementService,
@@ -64,13 +64,13 @@ public class StatementCommands extends AbstractShellComponent {
             ReviewService reviewService,
             CsvExportService csvExportService,
             SplitService splitService,
-            FriendConfig friendConfig) {
+            FriendService friendService) {
         this.statementService = statementService;
         this.instrumentService = instrumentService;
         this.reviewService = reviewService;
         this.csvExportService = csvExportService;
         this.splitService = splitService;
-        this.friendConfig = friendConfig;
+        this.friendService = friendService;
     }
 
     @Command(
@@ -352,8 +352,9 @@ public class StatementCommands extends AbstractShellComponent {
             return;
         }
 
-        if (friendConfig == null || friendConfig.friends() == null || friendConfig.friends().isEmpty()) {
-            writer.println("⚠ No friends configured in friends.yml");
+        List<Friend> friends = friendService.getAllFriends();
+        if (friends.isEmpty()) {
+            writer.println("⚠ No friends configured. Add friends using 'friend add' command");
             getTerminal().flush();
             return;
         }
@@ -361,7 +362,7 @@ public class StatementCommands extends AbstractShellComponent {
         // Select participants
         List<SelectorItem<Friend>> friendOptions = new ArrayList<>();
         friendOptions.add(SelectorItem.of("Myself", Friend.SELF, true, true));
-        for (Friend friend : friendConfig.friends()) {
+        for (Friend friend : friends) {
             friendOptions.add(SelectorItem.of(friend.name(), friend));
         }
 

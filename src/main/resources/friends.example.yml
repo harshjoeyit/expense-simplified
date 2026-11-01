@@ -1,12 +1,9 @@
 friends:
-  - id: "alice"
-    name: "Alice Smith"
-#    splitwiseId: "12345"           # Optional for V1
-  - id: "bob"
-    name: "Bob Jones"
+  - name: "Alice Smith"
+#    splitwise-id: 12345           # Optional for V1
+  - name: "Bob Jones"
 
 # for V2 (splitwise API integration)
 user:
-  id: "self"
   name: "Harshit"
-  splitwise_id: "12345"
+  splitwise_id: 12345

@@ -24,7 +24,7 @@ public class JdbcSplitRepository implements SplitRepository {
     private static final RowMapper<TransactionSplit> ROW_MAPPER = (rs, rowNum) -> TransactionSplit.builder()
             .id(UUID.fromString(rs.getString("id")))
             .transactionId(UUID.fromString(rs.getString("transaction_id")))
-            .friendId(rs.getString("friend_id"))
+            .friendId(rs.getInt("friend_id"))
             .friendName(rs.getString("friend_name"))
             .amount(rs.getDouble("amount"))
             .strategy(SplitStrategy.valueOf(rs.getString("strategy")))

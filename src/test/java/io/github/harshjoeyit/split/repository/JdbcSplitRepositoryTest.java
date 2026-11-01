@@ -105,12 +105,12 @@ class JdbcSplitRepositoryTest {
         transactionRepository.saveTransaction(txn2);
     }
 
-    private TransactionSplit buildSplit(UUID id, UUID txnId, String friendId, double amount, SplitStatus status, LocalDateTime time) {
+    private TransactionSplit buildSplit(UUID id, UUID txnId, Integer friendId, double amount, SplitStatus status, LocalDateTime time) {
         return TransactionSplit.builder()
                 .id(id)
                 .transactionId(txnId)
                 .friendId(friendId)
-                .friendName(friendId.toUpperCase())
+                .friendName("FRIEND_" + friendId)
                 .amount(amount)
                 .strategy(SplitStrategy.EQUAL)
                 .status(status)
@@ -123,7 +123,7 @@ class JdbcSplitRepositoryTest {
     void saveAndFindById_returnsPersistedSplit() {
         UUID splitId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit split = buildSplit(splitId, transactionId1, "ankit", 100.0, SplitStatus.PENDING, now);
+        TransactionSplit split = buildSplit(splitId, transactionId1, 1, 100.0, SplitStatus.PENDING, now);
 
         splitRepository.saveSplit(split);
 
@@ -132,8 +132,8 @@ class JdbcSplitRepositoryTest {
         TransactionSplit actual = found.get();
         assertThat(actual.id()).isEqualTo(splitId);
         assertThat(actual.transactionId()).isEqualTo(transactionId1);
-        assertThat(actual.friendId()).isEqualTo("ankit");
-        assertThat(actual.friendName()).isEqualTo("ANKIT");
+        assertThat(actual.friendId()).isEqualTo(1);
+        assertThat(actual.friendName()).isEqualTo("FRIEND_1");
         assertThat(actual.amount()).isEqualTo(100.0);
         assertThat(actual.strategy()).isEqualTo(SplitStrategy.EQUAL);
         assertThat(actual.status()).isEqualTo(SplitStatus.PENDING);
@@ -144,7 +144,7 @@ class JdbcSplitRepositoryTest {
         UUID splitId = UUID.randomUUID();
         LocalDateTime originalTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
         LocalDateTime updatedTime = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit original = buildSplit(splitId, transactionId1, "ankit", 100.0, SplitStatus.PENDING, originalTime);
+        TransactionSplit original = buildSplit(splitId, transactionId1, 1, 100.0, SplitStatus.PENDING, originalTime);
 
         splitRepository.saveSplit(original);
 
@@ -153,7 +153,7 @@ class JdbcSplitRepositoryTest {
         TransactionSplit updateAttempt = TransactionSplit.builder()
                 .id(splitId)
                 .transactionId(transactionId2)
-                .friendId("sachin")
+                .friendId(2)
                 .friendName("Sachin Tendulkar")
                 .amount(150.0)
                 .strategy(SplitStrategy.CUSTOM)
@@ -176,30 +176,30 @@ class JdbcSplitRepositoryTest {
 
         // Immutable relational and provenance fields preserved
         assertThat(actual.transactionId()).isEqualTo(transactionId1);
-        assertThat(actual.friendId()).isEqualTo("ankit");
-        assertThat(actual.friendName()).isEqualTo("ANKIT");
+        assertThat(actual.friendId()).isEqualTo(1);
+        assertThat(actual.friendName()).isEqualTo("FRIEND_1");
         assertThat(actual.createdAt()).isEqualTo(originalTime);
     }
 
     @Test
     void findSplitsByTxnId_returnsOnlySplitsForTargetTxn() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit split1 = buildSplit(UUID.randomUUID(), transactionId1, "ankit", 100.0, SplitStatus.PENDING, now);
-        TransactionSplit split2 = buildSplit(UUID.randomUUID(), transactionId1, "sachin", 100.0, SplitStatus.PENDING, now);
-        TransactionSplit split3 = buildSplit(UUID.randomUUID(), transactionId2, "ankit", 50.0, SplitStatus.PENDING, now);
+        TransactionSplit split1 = buildSplit(UUID.randomUUID(), transactionId1, 1, 100.0, SplitStatus.PENDING, now);
+        TransactionSplit split2 = buildSplit(UUID.randomUUID(), transactionId1, 2, 100.0, SplitStatus.PENDING, now);
+        TransactionSplit split3 = buildSplit(UUID.randomUUID(), transactionId2, 1, 50.0, SplitStatus.PENDING, now);
 
         splitRepository.saveSplits(List.of(split1, split2, split3));
 
         List<TransactionSplit> splits = splitRepository.findSplitsByTxnId(transactionId1);
         assertThat(splits).hasSize(2);
-        assertThat(splits).extracting(TransactionSplit::friendId).containsExactlyInAnyOrder("ankit", "sachin");
+        assertThat(splits).extracting(TransactionSplit::friendId).containsExactlyInAnyOrder(1, 2);
     }
 
     @Test
     void deleteSplitsByTxnId_removesSplitsForMatchingTxnOnly() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit split1 = buildSplit(UUID.randomUUID(), transactionId1, "ankit", 100.0, SplitStatus.PENDING, now);
-        TransactionSplit split2 = buildSplit(UUID.randomUUID(), transactionId2, "sachin", 50.0, SplitStatus.PENDING, now);
+        TransactionSplit split1 = buildSplit(UUID.randomUUID(), transactionId1, 1, 100.0, SplitStatus.PENDING, now);
+        TransactionSplit split2 = buildSplit(UUID.randomUUID(), transactionId2, 2, 50.0, SplitStatus.PENDING, now);
 
         splitRepository.saveSplits(List.of(split1, split2));
 
@@ -212,9 +212,9 @@ class JdbcSplitRepositoryTest {
     @Test
     void findPendingSplits_respectsLimitAndStatus() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit pending1 = buildSplit(UUID.randomUUID(), transactionId1, "ankit", 100.0, SplitStatus.PENDING, now.minusHours(2));
-        TransactionSplit pending2 = buildSplit(UUID.randomUUID(), transactionId1, "sachin", 100.0, SplitStatus.PENDING, now.minusHours(1));
-        TransactionSplit posted = buildSplit(UUID.randomUUID(), transactionId2, "rahul", 50.0, SplitStatus.POSTED, now);
+        TransactionSplit pending1 = buildSplit(UUID.randomUUID(), transactionId1, 1, 100.0, SplitStatus.PENDING, now.minusHours(2));
+        TransactionSplit pending2 = buildSplit(UUID.randomUUID(), transactionId1, 2, 100.0, SplitStatus.PENDING, now.minusHours(1));
+        TransactionSplit posted = buildSplit(UUID.randomUUID(), transactionId2, 3, 50.0, SplitStatus.POSTED, now);
 
         splitRepository.saveSplits(List.of(pending1, pending2, posted));
 
@@ -228,7 +228,7 @@ class JdbcSplitRepositoryTest {
     void markAsPosted_updatesStatusToPosted() {
         UUID splitId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        TransactionSplit split = buildSplit(splitId, transactionId1, "ankit", 100.0, SplitStatus.PENDING, now);
+        TransactionSplit split = buildSplit(splitId, transactionId1, 1, 100.0, SplitStatus.PENDING, now);
 
         splitRepository.saveSplit(split);
         assertThat(splitRepository.findById(splitId).get().status()).isEqualTo(SplitStatus.PENDING);

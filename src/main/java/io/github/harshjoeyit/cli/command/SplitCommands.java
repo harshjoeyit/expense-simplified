@@ -96,7 +96,7 @@ public class SplitCommands {
                     split.transactionId() != null ? split.transactionId().toString() : "-",
                     dateStr,
                     counterparty,
-                    split.friendName() != null ? split.friendName() : split.friendId(),
+                    split.friendName(),
                     String.format(Locale.ROOT, "₹%.2f", split.amount()),
                     split.strategy() != null ? split.strategy().name() : "-",
                     split.status() != null ? split.status().name() : "-"

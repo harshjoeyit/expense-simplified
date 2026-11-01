@@ -24,7 +24,8 @@ spring:
     locations: classpath:db/migration
 
 app:
-  persistence: in-memory
+#  persistence: in-memory
+  persistence: sqlite
 
 logging:
   file:

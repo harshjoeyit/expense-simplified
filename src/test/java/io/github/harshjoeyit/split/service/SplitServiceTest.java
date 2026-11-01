@@ -34,8 +34,8 @@ class SplitServiceTest {
 
     private SplitService splitService;
 
-    private final Friend alice = new Friend("alice", "Alice", "1234");
-    private final Friend bob = new Friend("bob", "Bob", "5678");
+    private final Friend alice = new Friend(1, "Alice", 1234L);
+    private final Friend bob = new Friend(2, "Bob", 5678L);
     private final Friend self = Friend.SELF;
 
     @BeforeEach
@@ -105,7 +105,7 @@ class SplitServiceTest {
 
         // TransactionSplit should NOT contain SELF
         assertThat(result.splits()).hasSize(2);
-        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
@@ -168,7 +168,7 @@ class SplitServiceTest {
         assertThat(result.myShare()).isEqualTo(50.0);
 
         assertThat(result.splits()).hasSize(2);
-        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum).isEqualTo(100.0);
@@ -250,7 +250,7 @@ class SplitServiceTest {
 
         verify(transactionRepository).saveTransaction(txn);
         assertThat(result.splits()).hasSize(2);
-        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
@@ -305,7 +305,7 @@ class SplitServiceTest {
 
         verify(transactionRepository).saveTransaction(txn);
         assertThat(result.splits()).hasSize(2);
-        assertThat(result.splits()).noneMatch(s -> s.friendId().equals("self"));
+        assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
         assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
