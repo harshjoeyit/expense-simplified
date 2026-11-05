@@ -36,7 +36,7 @@ public class ScapiaCreditCardStatementParser implements Parser {
     private static final Set<String> EXPECTED_STMT_HEADER = Set.of(
             "date", "time", "description", "amount"
     );
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("[dd-MM-yyyy][dd/MM/yyyy][dd-MM-yy][dd/MM/yy]");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     @Override
@@ -56,7 +56,7 @@ public class ScapiaCreditCardStatementParser implements Parser {
         try (CSVParser csvParser = format.parse(reader)) {
 
             Set<String> actualHeaders = csvParser.getHeaderMap().keySet();
-            if (!actualHeaders.equals(EXPECTED_STMT_HEADER)) {
+            if (!ParseUtil.matchesHeaders(actualHeaders, EXPECTED_STMT_HEADER)) {
                 log.error("CSV header mismatch. Actual: {}, Expected: {}", actualHeaders, EXPECTED_STMT_HEADER);
                 throw new MalformedCsvException(
                         "Unexpected CSV headers: " + actualHeaders
@@ -68,11 +68,11 @@ public class ScapiaCreditCardStatementParser implements Parser {
                 log.debug("Processing Scapia CC record [line {}]: {}", record.getRecordNumber(), record);
 
                 try {
-                    // Access fields by their header names
-                    String parsedDescription = record.get("description");
-                    String parsedAmount = record.get("amount");
-                    LocalDate date = LocalDate.parse(record.get("date"), DATE_FORMATTER);
-                    LocalTime time = LocalTime.parse(record.get("time"), TIME_FORMATTER);
+                    // Access fields by their header names (case-insensitive fallback)
+                    String parsedDescription = ParseUtil.getField(record, "description");
+                    String parsedAmount = ParseUtil.getField(record, "amount");
+                    LocalDate date = LocalDate.parse(ParseUtil.getField(record, "date").trim(), DATE_FORMATTER);
+                    LocalTime time = LocalTime.parse(ParseUtil.getField(record, "time").trim(), TIME_FORMATTER);
 
                     // Convert extracted fields into required format
                     double rawAmount = ParseUtil.parseAmount(parsedAmount);

@@ -414,4 +414,27 @@ class HdfcCreditCardStatementParserTest {
         assertThat(transactions.get(1).getCounterparty()).isEqualTo("Amazon Seller Services BANGALORE");
         assertThat(transactions.get(1).getAmount()).isEqualTo(205.00);
     }
+
+    @Test
+    void parseDelimited_withCaseInsensitiveHeadersAndHyphenatedDates_parsesSuccessfully() throws IOException {
+        String csvData = "Domestic / International Transactions" +
+                "\nTransaction Type~|~Primary / Addon Customer Name~|~Date~|~Description~|~Amt~|~Debit /Credit~|~Rewards~|~" +
+                "\nDOMESTIC~|~HARSHIT GANGWAR ~|~17-08-2026 08:49:36~|~Swiggy Food BENGALURU ~|~1,211.00~|~~|~~|~" +
+                "\nDOMESTIC~|~HARSHIT GANGWAR ~|~18-08-2026 20:46:59~|~CREDIT CARD PAYMENT~|~5,000.00~|~Cr~|~~|~";
+
+        BufferedReader reader = new BufferedReader(new StringReader(csvData));
+
+        List<NormalizedTransaction> transactions = parser.parseDelimited(reader);
+
+        assertThat(transactions).hasSize(2);
+        assertThat(transactions.get(0).getCounterparty()).isEqualTo("Swiggy Food BENGALURU");
+        assertThat(transactions.get(0).getAmount()).isEqualTo(1211.00);
+        assertThat(transactions.get(0).getDirection()).isEqualTo(TxnDirection.DEBIT);
+        assertThat(transactions.get(0).getType()).isEqualTo(TxnType.PURCHASE);
+
+        assertThat(transactions.get(1).getCounterparty()).isEqualTo("CREDIT CARD PAYMENT");
+        assertThat(transactions.get(1).getAmount()).isEqualTo(5000.00);
+        assertThat(transactions.get(1).getDirection()).isEqualTo(TxnDirection.CREDIT);
+        assertThat(transactions.get(1).getType()).isEqualTo(TxnType.CREDIT_CARD_BILL_PAYMENT);
+    }
 }

@@ -125,8 +125,8 @@ class HdfcAccountStatementParserTest {
         String csvData = "Date,Narration,Value Dat,Debit Amount,Credit Amount,Chq/Ref Number,Closing Balance\n" +
                 // Row 1: Valid
                 "01/09/26,UPI-MD SAHIL AHMED-6901101156@PTYES-SBIN0009144-128824703732-AIRPORT,01/09/26,861.00,0.00,0000128824703732,206691.81\n" +
-                // Row 2: Malformed narration (unsupported narration prefix)
-                "01/09/26,UNKNOWN_TXN_FORMAT-SOME_TEXT,01/09/26,500.00,0.00,000012345678,206191.81\n" +
+                // Row 2: Malformed amount (non-numeric debit amount)
+                "01/09/26,SOME_TXN_NARRATION,01/09/26,NOT_A_NUMBER,0.00,000012345678,206191.81\n" +
                 // Row 3: Malformed date
                 "INVALID_DATE,UPI-HARSHIT GANGWAR-HARSHITGANGWAR02@YBL-BARB0VJMNRE-128849238164-CARDS,02/09/26,100.00,0.00,0000128849238164,206091.81\n" +
                 // Row 4: Valid
@@ -143,5 +143,68 @@ class HdfcAccountStatementParserTest {
 
         assertThat(transactions.get(1).getCounterparty()).isEqualTo("ARPIT KUMAR PARMAR");
         assertThat(transactions.get(1).getAmount()).isEqualTo(13833.00);
+    }
+
+    @Test
+    void parseDelimited_onNonUpiNonImpsNarration_usesFallbackNarrationAndSupportsFourDigitYear() throws IOException {
+        String csvData = "Date,Narration,Value Dat,Debit Amount,Credit Amount,Chq/Ref Number,Closing Balance\n" +
+                "01/09/2026,POS 4012XXXXXXXX1234 SWIGGY BANGALORE,01/09/2026,450.00,0.00,REF12345,10000.00\n" +
+                "02/09/26,SWEEP-IN CREDIT - 5030129999,02/09/26,0.00,5000.00,000000000000000,15000.00\n" +
+                "03/09/26,NEFT CR-HDFC0000123-COMPANY-SALARY,03/09/26,0.00,50000.00,REF99999,65000.00";
+
+        BufferedReader reader = new BufferedReader(new StringReader(csvData));
+
+        List<NormalizedTransaction> transactions = parser.parseDelimited(reader);
+
+        assertThat(transactions).hasSize(3);
+
+        // Transaction 1: POS Debit Card with 4-digit year
+        NormalizedTransaction posTxn = transactions.get(0);
+        assertThat(posTxn.getAmount()).isEqualTo(450.00);
+        assertThat(posTxn.getDirection()).isEqualTo(TxnDirection.DEBIT);
+        assertThat(posTxn.getDatetime()).isEqualTo(LocalDateTime.of(2026, 9, 1, 0, 0));
+        assertThat(posTxn.getCounterparty()).isEqualTo("POS 4012XXXXXXXX1234 SWIGGY BANGALORE");
+        assertThat(posTxn.getBankReference()).isEqualTo("REF12345");
+        assertThat(posTxn.getReviewStatus()).isEqualTo(TxnReviewStatus.PENDING);
+
+        // Transaction 2: Sweep In
+        NormalizedTransaction sweepTxn = transactions.get(1);
+        assertThat(sweepTxn.getAmount()).isEqualTo(5000.00);
+        assertThat(sweepTxn.getDirection()).isEqualTo(TxnDirection.CREDIT);
+        assertThat(sweepTxn.getCounterparty()).isEqualTo("SWEEP-IN CREDIT - 5030129999");
+        assertThat(sweepTxn.getMode()).isEqualTo(null);
+        assertThat(sweepTxn.getBankReference()).isEqualTo("000000000000000");
+
+        // Transaction 3: NEFT
+        NormalizedTransaction neftTxn = transactions.get(2);
+        assertThat(neftTxn.getAmount()).isEqualTo(50000.00);
+        assertThat(neftTxn.getDirection()).isEqualTo(TxnDirection.CREDIT);
+        assertThat(neftTxn.getCounterparty()).isEqualTo("NEFT CR-HDFC0000123-COMPANY-SALARY");
+        assertThat(neftTxn.getMode()).isEqualTo(TxnMode.FT);
+        assertThat(neftTxn.getBankReference()).isEqualTo("REF99999");
+    }
+
+    @Test
+    void parseDelimited_withLeadingMetadataRowsAndUppercaseHeaders_parsesSuccessfully() throws IOException {
+        String csvData = "HDFC BANK STATEMENT\n" +
+                "Account No: 50100012345678\n" +
+                "Statement Period: 01/08/2026 to 31/08/2026\n" +
+                "\n" +
+                "DATE,NARRATION,VALUE DATE,DEBIT AMOUNT,CREDIT AMOUNT,CHQ/REF NUMBER,CLOSING BALANCE\n" +
+                "01-08-2026,POS 4012XXXXXXXX1234 SWIGGY,01-08-2026,350.00,0.00,REF111,50000.00\n" +
+                "02-08-26,UPI-FRIEND-FRIEND@OKAXIS-SBIN0001234-123456789012-FOOD,02-08-26,0.00,1000.00,000123456789012,51000.00";
+
+        BufferedReader reader = new BufferedReader(new StringReader(csvData));
+
+        List<NormalizedTransaction> transactions = parser.parseDelimited(reader);
+
+        assertThat(transactions).hasSize(2);
+        assertThat(transactions.get(0).getAmount()).isEqualTo(350.00);
+        assertThat(transactions.get(0).getCounterparty()).isEqualTo("POS 4012XXXXXXXX1234 SWIGGY");
+        assertThat(transactions.get(0).getDatetime()).isEqualTo(LocalDateTime.of(2026, 8, 1, 0, 0));
+
+        assertThat(transactions.get(1).getAmount()).isEqualTo(1000.00);
+        assertThat(transactions.get(1).getCounterparty()).isEqualTo("FRIEND");
+        assertThat(transactions.get(1).getDatetime()).isEqualTo(LocalDateTime.of(2026, 8, 2, 0, 0));
     }
 }

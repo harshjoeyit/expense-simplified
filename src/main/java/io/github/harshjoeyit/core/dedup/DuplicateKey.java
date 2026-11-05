@@ -23,7 +23,12 @@ public record DuplicateKey(
         }
         LocalDate date = txn.getDatetime() != null ? txn.getDatetime().toLocalDate() : null;
 
-        String id = (txn.getBankReference() != null && !txn.getBankReference().isBlank())
+        // Bank Reference - 00000000  is treated as blank. Key falls back to counterparty
+        boolean hasDistinctBankRef = txn.getBankReference() != null
+                && !txn.getBankReference().isBlank()
+                && !txn.getBankReference().trim().matches("^0+$");
+
+        String id = hasDistinctBankRef
                 ? txn.getBankReference().trim().toUpperCase()
                 : normalize(txn.getCounterparty());
 

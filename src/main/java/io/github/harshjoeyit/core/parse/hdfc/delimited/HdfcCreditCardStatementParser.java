@@ -39,7 +39,7 @@ public class HdfcCreditCardStatementParser implements Parser {
             "DATE", "Description", "AMT", "Debit /Credit", "REWARDS"
     );
     private static final String TARGET_HEADER_PREFIX = "Transaction type~|~Primary / Addon Customer Name";
-    private static final String DATETIME_FORMAT = "dd/MM/yyyy HH:mm:ss";
+    private static final String DATETIME_FORMAT = "[dd/MM/yyyy HH:mm:ss][dd/MM/yy HH:mm:ss][dd-MM-yyyy HH:mm:ss][dd-MM-yy HH:mm:ss]";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(DATETIME_FORMAT);
     private static final Set<String> VALID_TRANSACTION_TYPES = Set.of("Domestic", "International");
     private static final Set<String> ELIGIBLE_CC_PAYMENT_DESCRIPTION = Set.of("CC PAYMENT", "CREDIT CARD PAYMENT");
@@ -54,7 +54,9 @@ public class HdfcCreditCardStatementParser implements Parser {
         boolean headerFound = false;
 
         while ((headerLine = reader.readLine()) != null) {
-            if (headerLine.startsWith(TARGET_HEADER_PREFIX)) {
+            String lower = headerLine.toLowerCase(java.util.Locale.ROOT);
+            if (lower.startsWith(TARGET_HEADER_PREFIX.toLowerCase())
+                    || (lower.contains("transaction type") && lower.contains("description") && lower.contains("amt"))) {
                 headerFound = true;
                 break;
             }
@@ -87,7 +89,7 @@ public class HdfcCreditCardStatementParser implements Parser {
         }
 
         Set<String> actualHeaders = Set.copyOf(headerNames);
-        if (!actualHeaders.equals(EXPECTED_STMT_HEADER)) {
+        if (!ParseUtil.matchesHeaders(actualHeaders, EXPECTED_STMT_HEADER)) {
             throw new MalformedCsvException(
                     "Unexpected CSV headers: " + actualHeaders
                             + ", Expected CSV headers: " + EXPECTED_STMT_HEADER
@@ -110,8 +112,10 @@ public class HdfcCreditCardStatementParser implements Parser {
             for (CSVRecord record : csvParser) {
                 // If a row does not match the transaction structure or has an invalid transaction type,
                 // the transaction section has ended.
-                if (record.size() < EXPECTED_STMT_HEADER.size()
-                        || !VALID_TRANSACTION_TYPES.contains(record.get("Transaction type").trim())) {
+                String txnTypeStr = ParseUtil.getField(record, "Transaction type");
+                boolean isValidType = txnTypeStr != null && VALID_TRANSACTION_TYPES.stream()
+                        .anyMatch(t -> t.equalsIgnoreCase(txnTypeStr.trim()));
+                if (record.size() < EXPECTED_STMT_HEADER.size() || !isValidType) {
                     break;
                 }
 
@@ -119,15 +123,17 @@ public class HdfcCreditCardStatementParser implements Parser {
 
                 try {
                     // Map fields safely using column names
-                    String description = record.get("Description");
-                    String parsedAmount = record.get("AMT");
-                    String debitCredit = record.get("Debit /Credit");
-                    String parsedDateTime = record.get("DATE");
+                    String description = ParseUtil.getField(record, "Description");
+                    String parsedAmount = ParseUtil.getField(record, "AMT");
+                    String debitCredit = ParseUtil.getField(record, "Debit /Credit");
+                    String parsedDateTime = ParseUtil.getField(record, "DATE");
 
                     // Convert extracted fields into required format
                     double amount = Math.abs(ParseUtil.parseAmount(parsedAmount));
-                    LocalDateTime dateTime = LocalDateTime.parse(parsedDateTime, DATE_FORMATTER);
-                    TxnDirection direction = debitCredit.equals("Cr") ? TxnDirection.CREDIT : TxnDirection.DEBIT;
+                    LocalDateTime dateTime = LocalDateTime.parse(parsedDateTime.trim(), DATE_FORMATTER);
+                    TxnDirection direction = "cr".equalsIgnoreCase(debitCredit != null ? debitCredit.trim() : "")
+                            ? TxnDirection.CREDIT
+                            : TxnDirection.DEBIT;
                     TxnType type = resolveTxnType(description, direction);
                     CounterpartyType counterpartyType = resolveCounterPartyType(type);
                     LocalDateTime crTime = LocalDateTime.now();

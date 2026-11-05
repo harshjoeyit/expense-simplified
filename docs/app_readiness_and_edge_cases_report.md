@@ -18,62 +18,18 @@ Most notably, **importing an HDFC Account statement with unmapped transactions w
 
 ## 1. Showstoppers & Critical Risks
 
-### 🚨 1. SQLite `NOT NULL` Crash on `transactions.type` for Unreviewed Account Transactions
-- **Location:** `V1__create_schema.sql` (Line 22) vs `HdfcAccountStatementParser.java` (Lines 93–110)
-- **The Issue:**
-  - In `HdfcAccountStatementParser`, `txn.getType()` is intentionally left unset (`null`) because an account debit/credit is not inherently known to be a `PURCHASE`, `SALARY`, `INVESTMENT`, or `TRANSFER` until manual review or rule matching occurs.
-  - If a transaction does not match an existing rule in `TransactionMapper`, it arrives at `JdbcTransactionRepository.saveTransactions()` with `type = null`.
-  - In `V1__create_schema.sql`, the column is defined as `type TEXT NOT NULL`.
-  - SQLite will throw:
-    ```text
-    org.sqlite.SQLiteException: [SQLITE_CONSTRAINT_NOTNULL] NOT NULL constraint failed: transactions.type
-    ```
-  - **Impact:** Any HDFC account statement with new/unmapped transactions will completely fail to import and throw a database exception.
-  - **Workaround / Fix:** A Flyway migration is needed to make `type` nullable in the `transactions` table (just as `V3` did for `mapping_rules`), or assign a fallback `null`-safe handling before DB insert.
+### ✅ 1. [RESOLVED] SQLite `NOT NULL` Crash on `transactions.type` for Unreviewed Account Transactions
+- **Status:** Resolved in `V6__allow_null_transaction_type.sql` and `JdbcTransactionRepository`. Null values for pending transactions are fully supported.
 
 ---
 
-### 🚨 2. Floating-Point Equality Trap in Custom & Percent Splits
-- **Location:** `SplitService.java` (Lines 289, 301)
-- **The Issue:**
-  - In `validatePercentSplit`:
-    ```java
-    Double percentSum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
-    if (!percentSum.equals(100.0)) {
-        throw new InvalidSplitException("Aggregated percent is not 100%");
-    }
-    ```
-  - In `validateCustomSplit`:
-    ```java
-    Double sum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
-    if (!sum.equals(splitInput.amount())) {
-        throw new InvalidSplitException("Total amount does not match aggregated split amount");
-    }
-    ```
-  - In Java, floating-point `double` arithmetic suffers from binary representation error (e.g. `33.33 + 33.33 + 33.34 = 100.00000000000001` or `0.1 + 0.2 != 0.3`).
-  - Using `!sum.equals(target)` tests exact bitwise identity instead of tolerance (`Math.abs(sum - target) < 0.01` or `BigDecimal`).
-  - **Impact:** Splitting transactions using `PERCENT` or `CUSTOM` with fractional amounts (like 3-way 33.33% splits or cents/paise) will falsely throw `InvalidSplitException` and prevent the user from saving the split.
+### ✅ 2. [RESOLVED] Floating-Point Equality Trap in Custom & Percent Splits
+- **Status:** Resolved in `SplitService`. `Double.equals` replaced with epsilon tolerance (`EPSILON = 0.01`).
 
 ---
 
-### 🚨 3. Silent Skipping of Non-UPI / Non-IMPS Transactions in HDFC Account
-- **Location:** `HdfcAccountStatementParser.java` (Lines 113–119, 138–143)
-- **The Issue:**
-  - `HdfcAccountStatementParser` delegates narration parsing to Spring-injected `NarrationParser` implementations.
-  - Currently, **only two narration parsers exist**: `UpiNarrationParser` (starts with `UPI-`) and `ImpsNarrationParser` (starts with `IMPS-`).
-  - If your statement has:
-    - POS Debit Card purchases (`POS 4012...`)
-    - ATM cash withdrawals (`NWD-...`, `ATW-...`)
-    - NEFT or RTGS transfers
-    - Salary credits (`ACH-...`, `SALARY-...`)
-    - Bank charges, SMS fees, interest credits (`INT.PD...`, `CHG...`)
-  - `getNarrationParser()` throws `UnsupportedNarrationException`, which is caught in the loop:
-    ```java
-    catch (UnsupportedNarrationException | MalformedNarrationException e) {
-        log.warn("Skipping record [line {}] due to narration issue...", record.getRecordNumber());
-    }
-    ```
-  - **Impact:** Those transactions are **silently omitted** from the import. If your statement has 50 rows and 15 are debit card swipes, only 35 UPI/IMPS transactions will be imported.
+### ✅ 3. [RESOLVED] Non-UPI / Non-IMPS Transactions in HDFC Account
+- **Status:** Resolved in `HdfcAccountStatementParser`. Fallback narration parsing now captures POS, ATM, Sweep-In, NEFT/RTGS, and other narrations rather than dropping them. Date format pattern updated to `[dd/MM/yyyy][dd/MM/yy]`.
 
 ---
 

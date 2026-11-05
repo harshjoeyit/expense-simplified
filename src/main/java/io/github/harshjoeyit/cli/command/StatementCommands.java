@@ -114,7 +114,7 @@ public class StatementCommands extends AbstractShellComponent {
         // Determine file statementType
         Optional<StatementType> statementType = instrumentService.getStatementType(instrumentId);
         if (statementType.isEmpty()) {
-            return "Error: statement type could not be determined";
+            return String.format("Error: Unknown instrument '%s'. Please check your configured instruments", instrumentId);
         }
         log.info("Using statement type: {}", statementType);
 
@@ -411,7 +411,7 @@ public class StatementCommands extends AbstractShellComponent {
 
         List<Friend> friends = friendService.getAllFriends();
         if (friends.isEmpty()) {
-            writer.println("⚠ No friends configured. Add friends using 'friend add' command");
+            writer.println("⚠ No friends configured. Add friends using 'friend-add' command");
             getTerminal().flush();
             return;
         }

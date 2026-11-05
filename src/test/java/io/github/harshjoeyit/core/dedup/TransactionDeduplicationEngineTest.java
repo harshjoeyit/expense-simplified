@@ -146,6 +146,21 @@ class TransactionDeduplicationEngineTest {
         assertThat(result.crossInstrumentCollision()).isEqualTo("HDFC_SALARY");
     }
 
+    @Test
+    @DisplayName("All-zero bankReference falls back to counterparty, keeping distinct transactions separated")
+    void deduplicate_whenBankRefIsAllZeros_fallsBackToCounterparty() {
+        NormalizedTransaction existingSweep = createTxn("HDFC_ACC", UUID.randomUUID(), "2024-08-01T00:00:00", 5000.0, TxnDirection.CREDIT, "000000000000000", "SWEEP-IN CREDIT");
+        NormalizedTransaction incomingInterest = createTxn("HDFC_ACC", null, "2024-08-01T00:00:00", 5000.0, TxnDirection.CREDIT, "000000000000000", "INTEREST PAID");
+
+        when(transactionRepository.findByDateRange(any(), any())).thenReturn(List.of(existingSweep));
+
+        DeduplicationResult result = engine.deduplicate("HDFC_ACC", List.of(incomingInterest));
+
+        // Because counterparty differs ("INTEREST PAID" vs "SWEEP-IN CREDIT"), it is NOT flagged as duplicate
+        assertThat(result.newTransactions()).containsExactly(incomingInterest);
+        assertThat(result.duplicates()).isEmpty();
+    }
+
     private NormalizedTransaction createTxn(
             String instrumentId,
             UUID statementId,
