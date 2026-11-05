@@ -14,5 +14,7 @@ public enum TxnType {
     BORROW_REPAYMENT,               // N/A
     SELF_ACCOUNT_TRANSFER,          // N/A
     INVESTMENT,                     // N/A
-    SALARY                          // Category: INCOME
+    SALARY,                         // Category: INCOME
+    SWEEP_IN,                       // Fixed Deposit (FD) to account transfer on sweep in enable when account is short of balance
+    INTEREST_REV_ON_SWEEP_IN        // Debit of previously paid interest since FD balance was used to cover account balance
 }

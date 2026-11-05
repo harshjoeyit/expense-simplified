@@ -20,6 +20,8 @@ import java.util.*;
 @Service
 public class SplitService {
 
+    private static final double EPSILON = 0.01;
+
     private final TransactionRepository transactionRepository;
     private final SplitRepository splitRepository;
 
@@ -38,7 +40,7 @@ public class SplitService {
                 .findById(txnId)
                 .orElseThrow(() -> new InvalidTransactionId("Invalid txn id:" + txnId));
 
-        if (!Objects.equals(txn.getAmount(), splitInput.amount())) {
+        if (Math.abs(txn.getAmount() - splitInput.amount()) > EPSILON) {
             throw new InvalidSplitException("Transaction amount is different from total split amount");
         }
 
@@ -285,8 +287,8 @@ public class SplitService {
             throw new InvalidSplitException("Percent must be > 0 for all friends");
         }
 
-        Double percentSum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
-        if (!percentSum.equals(100.0)) {
+        double percentSum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
+        if (Math.abs(percentSum - 100.0) > EPSILON) {
             throw new InvalidSplitException("Aggregated percent is not 100%");
         }
     }
@@ -297,8 +299,8 @@ public class SplitService {
             throw new InvalidSplitException("Amount must be > 0 for all friends");
         }
 
-        Double sum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
-        if (!sum.equals(splitInput.amount())) {
+        double sum = splitInput.valuePerFriend().values().stream().mapToDouble(Double::doubleValue).sum();
+        if (Math.abs(sum - splitInput.amount()) > EPSILON) {
             throw new InvalidSplitException("Total amount does not match aggregated split amount");
         }
     }

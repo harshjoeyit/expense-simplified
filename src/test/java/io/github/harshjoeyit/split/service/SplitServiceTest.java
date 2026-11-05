@@ -13,7 +13,6 @@ import io.github.harshjoeyit.split.repository.SplitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -146,17 +145,18 @@ class SplitServiceTest {
     void splitCustom_withValidAmounts_persistsSplits() throws Exception {
         UUID txnId = UUID.randomUUID();
         NormalizedTransaction txn = NormalizedTransaction.builder()
-                .amount(150.0)
+                .amount(150.10)
                 .build();
         when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
 
+        // 50.02 + 60.00 + 40.08 = 150.10000000000002 in IEEE 754 floating-point
         Map<Friend, Double> participants = new LinkedHashMap<>();
-        participants.put(self, 50.0);
-        participants.put(alice, 60.0);
-        participants.put(bob, 40.0);
+        participants.put(self, 50.02);
+        participants.put(alice, 60.00);
+        participants.put(bob, 40.08);
 
         SplitInput input = SplitInput.builder()
-                .amount(150.0)
+                .amount(150.10)
                 .strategy(SplitStrategy.CUSTOM)
                 .valuePerFriend(participants)
                 .build();
@@ -164,14 +164,14 @@ class SplitServiceTest {
         SplitResult result = splitService.split(txnId, input);
 
         verify(transactionRepository).saveTransaction(txn);
-        assertThat(txn.getMyShare()).isEqualTo(50.0);
-        assertThat(result.myShare()).isEqualTo(50.0);
+        assertThat(txn.getMyShare()).isEqualTo(50.02);
+        assertThat(result.myShare()).isEqualTo(50.02);
 
         assertThat(result.splits()).hasSize(2);
         assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
-        assertThat(friendSum).isEqualTo(100.0);
+        assertThat(friendSum).isCloseTo(100.08, org.assertj.core.data.Offset.offset(0.01));
     }
 
     @Test
@@ -234,11 +234,11 @@ class SplitServiceTest {
                 .build();
         when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
 
-        // 3 participants with 33.33%, 33.33%, 33.34%
+        // 46.59% + 34.40% + 19.01% = 100.00000000000001 in IEEE 754 floating-point
         Map<Friend, Double> participants = new LinkedHashMap<>();
-        participants.put(alice, 33.33);
-        participants.put(bob, 33.33);
-        participants.put(self, 33.34);
+        participants.put(alice, 46.59);
+        participants.put(bob, 34.40);
+        participants.put(self, 19.01);
 
         SplitInput input = SplitInput.builder()
                 .amount(100.0)
@@ -253,7 +253,7 @@ class SplitServiceTest {
         assertThat(result.splits()).noneMatch(s -> s.friendId().equals(Friend.SELF.id()));
 
         double friendSum = result.splits().stream().mapToDouble(TransactionSplit::amount).sum();
-        assertThat(friendSum + txn.getMyShare()).isEqualTo(100.0);
+        assertThat(friendSum + txn.getMyShare()).isCloseTo(100.0, org.assertj.core.data.Offset.offset(0.01));
         assertThat(result.myShare()).isEqualTo(txn.getMyShare());
     }
 
