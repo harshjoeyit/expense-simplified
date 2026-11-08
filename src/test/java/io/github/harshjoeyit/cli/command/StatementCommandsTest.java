@@ -9,6 +9,9 @@ import io.github.harshjoeyit.core.model.Statement;
 import io.github.harshjoeyit.core.model.TxnReviewStatus;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
+import io.github.harshjoeyit.export.model.CsvExportResult;
+import io.github.harshjoeyit.export.model.ExportExclusionReason;
+import io.github.harshjoeyit.export.model.ExportPreflightResult;
 import io.github.harshjoeyit.export.service.CsvExportService;
 import io.github.harshjoeyit.model.StatementImportResult;
 import io.github.harshjoeyit.service.InstrumentService;
@@ -30,6 +33,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -210,28 +214,62 @@ class StatementCommandsTest {
     }
 
     @Test
-    @DisplayName("export displays generated file names and absolute paths")
+    @DisplayName("export displays generated file names and absolute paths with summary counts")
     void export_whenFilesCreated_returnsFormattedFileNamesAndPaths() {
         UUID stmtId = UUID.randomUUID();
         Path fakeExport = Path.of("./export/PURCHASE_1793543542.csv");
-        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(List.of(fakeExport));
+        when(csvExportService.exportPreflight(any())).thenReturn(new ExportPreflightResult(1, Map.of()));
+        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(new CsvExportResult(1, Map.of(), List.of(fakeExport)));
 
-        String output = commands.export(stmtId, null, null, "default", "./export");
+        String output = commands.export(stmtId, null, null, "default", "./export", false);
 
         assertThat(output)
                 .contains("Export completed successfully:")
                 .contains("PURCHASE_1793543542.csv")
-                .contains(fakeExport.toAbsolutePath().normalize().toString());
+                .contains(fakeExport.toAbsolutePath().normalize().toString())
+                .contains("Exported: 1 transaction(s)");
     }
 
     @Test
     @DisplayName("export when no files created returns informative message")
     void export_whenNoFilesCreated_returnsNoTransactionsMessage() {
         UUID stmtId = UUID.randomUUID();
-        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(List.of());
+        when(csvExportService.exportPreflight(any())).thenReturn(new ExportPreflightResult(0, Map.of()));
+        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(new CsvExportResult(0, Map.of(), List.of()));
 
-        String output = commands.export(stmtId, null, null, "default", "./export");
+        String output = commands.export(stmtId, null, null, "default", "./export", false);
 
         assertThat(output).isEqualTo("No reviewed transactions found to export.");
+    }
+
+    @Test
+    @DisplayName("export with yes flag bypasses prompt and reports excluded transactions in summary")
+    void export_whenPendingExcludedAndYesBypass_exportsWithoutPromptAndShowsSummary() {
+        UUID stmtId = UUID.randomUUID();
+        Path fakeExport = Path.of("./export/PURCHASE_1793543542.csv");
+        Map<ExportExclusionReason, Integer> excluded = Map.of(ExportExclusionReason.PENDING_REVIEW, 3);
+        when(csvExportService.exportPreflight(any())).thenReturn(new ExportPreflightResult(5, excluded));
+        when(csvExportService.export(any(), eq("default"), eq("./export"))).thenReturn(new CsvExportResult(5, excluded, List.of(fakeExport)));
+
+        String output = commands.export(stmtId, null, null, "default", "./export", true);
+
+        assertThat(output)
+                .contains("Export completed successfully:")
+                .contains("Exported: 5 transaction(s)")
+                .contains("Excluded: 3 transaction(s)")
+                .contains("Pending user review: 3");
+    }
+
+    @Test
+    @DisplayName("export when pending excluded and prompt not confirmed cancels export")
+    void export_whenPendingExcludedAndPromptNotConfirmed_cancelsExport() {
+        UUID stmtId = UUID.randomUUID();
+        Map<ExportExclusionReason, Integer> excluded = Map.of(ExportExclusionReason.PENDING_REVIEW, 2);
+        when(csvExportService.exportPreflight(any())).thenReturn(new ExportPreflightResult(4, excluded));
+
+        // When yes is false and headless/null terminal defaults to "N", prompt returns N
+        String output = commands.export(stmtId, null, null, "default", "./export", false);
+
+        assertThat(output).isEqualTo("Export cancelled.");
     }
 }

@@ -131,4 +131,31 @@ class InMemoryTransactionRepositoryTest {
         assertThat(result).extracting(NormalizedTransaction::getAmount)
                 .containsExactly(100.0, 200.0, 300.0);
     }
+
+    @Test
+    void findByDateRange_includesStartBoundaryAndExcludesEndBoundary() {
+        LocalDateTime start = LocalDateTime.parse("2024-08-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2024-09-01T00:00:00");
+
+        NormalizedTransaction atStart = NormalizedTransaction.builder()
+                .datetime(start)
+                .amount(10.0)
+                .build();
+        NormalizedTransaction inside = NormalizedTransaction.builder()
+                .datetime(LocalDateTime.parse("2024-08-31T23:59:59"))
+                .amount(20.0)
+                .build();
+        NormalizedTransaction atEnd = NormalizedTransaction.builder()
+                .datetime(end)
+                .amount(30.0)
+                .build();
+
+        repository.saveTransactions(List.of(atStart, inside, atEnd));
+
+        List<NormalizedTransaction> result = repository.findByDateRange(start, end);
+
+        assertThat(result).extracting(NormalizedTransaction::getAmount)
+                .containsExactly(10.0, 20.0);
+        assertThat(result).noneMatch(t -> t.getDatetime().equals(end));
+    }
 }

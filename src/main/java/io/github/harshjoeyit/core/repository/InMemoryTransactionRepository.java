@@ -71,7 +71,7 @@ public class InMemoryTransactionRepository implements TransactionRepository {
                 .stream()
                 .filter(t -> t.getDatetime() != null
                         && !t.getDatetime().isBefore(start)
-                        && !t.getDatetime().isAfter(end))
+                        && t.getDatetime().isBefore(end))
                 .sorted(Comparator.comparing(NormalizedTransaction::getDatetime))
                 .toList();
     }

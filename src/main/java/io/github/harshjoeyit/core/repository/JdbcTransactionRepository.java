@@ -117,6 +117,9 @@ public class JdbcTransactionRepository implements TransactionRepository {
         return reviewed;
     }
 
+    /**
+     * start is inclusive but end is exclusive
+     */
     @Override
     public List<NormalizedTransaction> findByDateRange(LocalDateTime start, LocalDateTime end) {
         if (start == null || end == null) {
@@ -125,7 +128,7 @@ public class JdbcTransactionRepository implements TransactionRepository {
         return jdbcClient
                 .sql("""
                         SELECT * FROM transactions
-                        WHERE datetime >= :start AND datetime <= :end
+                        WHERE datetime >= :start AND datetime < :end
                         ORDER BY datetime ASC
                         """)
                 .param("start", start.toString())

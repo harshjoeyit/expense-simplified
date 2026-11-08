@@ -48,7 +48,7 @@ public class TransactionDeduplicationEngine {
         }
 
         LocalDateTime startOfDay = minDate.toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = maxDate.toLocalDate().atTime(LocalTime.MAX);
+        LocalDateTime endOfDay = maxDate.toLocalDate().plusDays(1).atStartOfDay();
 
         List<NormalizedTransaction> existingTxnsInDateRange = transactionRepository.findByDateRange(startOfDay, endOfDay);
 

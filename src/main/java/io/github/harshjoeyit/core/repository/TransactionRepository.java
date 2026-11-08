@@ -12,6 +12,11 @@ public interface TransactionRepository {
     List<NormalizedTransaction> findByStatementId(UUID statementId);
     List<NormalizedTransaction> findPendingReviewTransactionsByStatementId(UUID statementId);
     List<NormalizedTransaction> findReviewedTransactionsByStatementId(UUID statementId);
+    /**
+     * Finds transactions within the specified date range.
+     * @param start start of range (inclusive)
+     * @param end end of range (exclusive)
+     */
     List<NormalizedTransaction> findByDateRange(LocalDateTime start, LocalDateTime end);
     void saveTransaction(NormalizedTransaction transaction);
 

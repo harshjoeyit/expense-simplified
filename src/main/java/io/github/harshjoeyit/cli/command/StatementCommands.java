@@ -11,6 +11,9 @@ import io.github.harshjoeyit.core.model.*;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
 import io.github.harshjoeyit.export.model.CsvExportInput;
+import io.github.harshjoeyit.export.model.CsvExportResult;
+import io.github.harshjoeyit.export.model.ExportExclusionReason;
+import io.github.harshjoeyit.export.model.ExportPreflightResult;
 import io.github.harshjoeyit.export.service.CsvExportService;
 import io.github.harshjoeyit.model.StatementImportResult;
 import io.github.harshjoeyit.service.InstrumentService;
@@ -28,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jline.keymap.BindingReader;
 import org.jline.keymap.KeyMap;
 import org.jline.terminal.Attributes;
+import org.jline.terminal.Terminal;
 import org.jline.utils.InfoCmp;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
@@ -353,7 +357,8 @@ public class StatementCommands extends AbstractShellComponent {
             @Option(longNames = "from", shortNames = 'f', description = "Period start date (YYYY-MM-DD)") LocalDate periodStartDate,
             @Option(longNames = "to", shortNames = 't', description = "Period end date (YYYY-MM-DD)") LocalDate periodEndDate,
             @Option(longNames = "profile", shortNames = 'p', defaultValue = "default", description = "Export profile name (e.g. default, notion)") String profile,
-            @Option(longNames = "output-dir", shortNames = 'o', description = "Target directory (default: ./export)") String outputDir
+            @Option(longNames = "output-dir", shortNames = 'o', description = "Target directory (default: ./export)") String outputDir,
+            @Option(longNames = "yes", shortNames = 'y', defaultValue = "false", description = "Confirm export without prompting when pending transactions exist") boolean yes
     ) {
         if (statementId == null && (periodStartDate == null || periodEndDate == null)) {
             // need at least a statement or time window
@@ -367,16 +372,45 @@ public class StatementCommands extends AbstractShellComponent {
                 .build();
 
         try {
-            List<Path> exportedFiles = csvExportService.export(input, profile, outputDir);
-            if (exportedFiles.isEmpty()) {
+            // Preflight check
+            ExportPreflightResult preflight = csvExportService.exportPreflight(input);
+            if (!yes && preflight.hasExcluded()) {
+                Terminal terminal = safeGetTerminal();
+                if (terminal != null) {
+                    PrintWriter writer = terminal.writer();
+                    writer.println(String.format("⚠ Warning: %d pending-review transaction(s) will be excluded from the export.",
+                            preflight.excludedCountByReason(ExportExclusionReason.PENDING_REVIEW)));
+                    writer.println(String.format("Eligible transactions to export: %d (Total candidates: %d)",
+                            preflight.eligibleTxns(), preflight.totalCount()));
+                    terminal.flush();
+                }
+
+                Optional<String> confirm = promptString("Proceed with export? (y/N):", "N");
+                if (confirm.isEmpty() || (!confirm.get().trim().equalsIgnoreCase("y") && !confirm.get().trim().equalsIgnoreCase("yes"))) {
+                    return "Export cancelled.";
+                }
+            }
+
+            // Export
+            CsvExportResult exportResult = csvExportService.export(input, profile, outputDir);
+            if (exportResult.exportedFiles().isEmpty()) {
                 return "No reviewed transactions found to export.";
             }
 
             StringBuilder sb = new StringBuilder();
             sb.append("✓ Export completed successfully:\n");
-            for (Path path : exportedFiles) {
+            for (Path path : exportResult.exportedFiles()) {
                 sb.append("  • ").append(path.getFileName())
                         .append(" (").append(path.toAbsolutePath().normalize()).append(")\n");
+            }
+            sb.append("\nSummary:\n");
+            sb.append("  • Exported: ").append(exportResult.exportedTxns()).append(" transaction(s)\n");
+            if (exportResult.hasExcluded()) {
+                sb.append("  • Excluded: ").append(exportResult.excludedTxnsCount()).append(" transaction(s)\n");
+                for (Map.Entry<ExportExclusionReason, Integer> entry : exportResult.excludedTxns().entrySet()) {
+                    sb.append("    - ").append(entry.getKey().getDescription())
+                            .append(": ").append(entry.getValue()).append("\n");
+                }
             }
             return sb.toString().trim();
         } catch (IllegalArgumentException e) {
@@ -560,13 +594,25 @@ public class StatementCommands extends AbstractShellComponent {
     }
 
     private Optional<String> promptString(String title, String defaultValue) {
-        StringInput component = new StringInput(getTerminal(), title, defaultValue);
+        Terminal terminal = safeGetTerminal();
+        if (terminal == null) {
+            return Optional.ofNullable(defaultValue);
+        }
+        StringInput component = new StringInput(terminal, title, defaultValue);
         component.setResourceLoader(getResourceLoader());
         component.setTemplateExecutor(getTemplateExecutor());
 
         StringInput.StringInputContext context = component.run(StringInput.StringInputContext.empty());
         String result = context.getResultValue();
         return Optional.ofNullable(result).filter(s -> !s.isBlank());
+    }
+
+    private Terminal safeGetTerminal() {
+        try {
+            return getTerminal();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void promptRule(

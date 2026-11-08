@@ -224,6 +224,27 @@ class JdbcTransactionRepositoryTest {
     }
 
     @Test
+    void findByDateRange_includesStartBoundaryAndExcludesEndBoundary() {
+        LocalDateTime start = LocalDateTime.parse("2024-08-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2024-09-01T00:00:00");
+
+        NormalizedTransaction atStart = buildSampleTransaction(UUID.randomUUID(), start, TxnReviewStatus.PENDING);
+        atStart.setAmount(10.0);
+        NormalizedTransaction inside = buildSampleTransaction(UUID.randomUUID(), LocalDateTime.parse("2024-08-31T23:59:59"), TxnReviewStatus.PENDING);
+        inside.setAmount(20.0);
+        NormalizedTransaction atEnd = buildSampleTransaction(UUID.randomUUID(), end, TxnReviewStatus.PENDING);
+        atEnd.setAmount(30.0);
+
+        transactionRepository.saveTransactions(List.of(atStart, inside, atEnd));
+
+        List<NormalizedTransaction> result = transactionRepository.findByDateRange(start, end);
+
+        assertThat(result).extracting(NormalizedTransaction::getAmount)
+                .containsExactly(10.0, 20.0);
+        assertThat(result).noneMatch(t -> t.getDatetime().equals(end));
+    }
+
+    @Test
     void saveTransaction_whenTypeIsNull_persistsSuccessfullyWithoutConstraintViolation() {
         UUID txnId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);

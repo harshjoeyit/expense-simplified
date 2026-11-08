@@ -1,14 +1,13 @@
 package io.github.harshjoeyit.export.service;
 
 import io.github.harshjoeyit.core.model.NormalizedTransaction;
-import io.github.harshjoeyit.core.model.Statement;
 import io.github.harshjoeyit.core.model.TxnCategory;
+import io.github.harshjoeyit.core.model.TxnReviewStatus;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.repository.StatementRepository;
 import io.github.harshjoeyit.core.repository.TransactionRepository;
 import io.github.harshjoeyit.export.config.ExportConfig;
-import io.github.harshjoeyit.export.model.CsvExportInput;
-import io.github.harshjoeyit.export.model.ExportType;
+import io.github.harshjoeyit.export.model.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -54,10 +53,24 @@ public class CsvExportService {
         this.transactionRepository = transactionRepository;
     }
 
-    public List<Path> export(CsvExportInput csvExportInput, String profile, String outputDir) throws IllegalArgumentException {
+    public ExportPreflightResult exportPreflight(CsvExportInput csvExportInput) {
         if (csvExportInput.statementId() == null
                 && (csvExportInput.periodStartDate() == null || csvExportInput.periodEndDate() == null)) {
-            throw new IllegalArgumentException("Either statement id of period start and end date required for export");
+            throw new IllegalArgumentException("Either statement id or period start and end date required for export");
+        }
+
+        // find transactions
+        List<NormalizedTransaction> transactions = findTransactions(csvExportInput);
+        // apply filters
+        ExclusionResult exclusionResult = groupExcludedTransactions(transactions);
+
+        return new ExportPreflightResult(exclusionResult.eligibleTxns().size(), exclusionResult.excludedTxns());
+    }
+
+    public CsvExportResult export(CsvExportInput csvExportInput, String profile, String outputDir) {
+        if (csvExportInput.statementId() == null
+                && (csvExportInput.periodStartDate() == null || csvExportInput.periodEndDate() == null)) {
+            throw new IllegalArgumentException("Either statement id or period start and end date required for export");
         }
 
         String profileToUse = profile != null && !profile.isBlank() ? profile : DEFAULT_PROFILE;
@@ -77,79 +90,92 @@ public class CsvExportService {
                 ? DateTimeFormatter.ofPattern(exportProfile.dateFormat())
                 : DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT);
 
-        // Fetch transactions
-        List<NormalizedTransaction> transactions = findTransactions(csvExportInput);
+        // Fetch candidate transactions and filter
+        List<NormalizedTransaction> candidateTransactions = findTransactions(csvExportInput);
+        ExclusionResult exclusionResult = groupExcludedTransactions(candidateTransactions);
+        List<NormalizedTransaction> eligibleTransactions = exclusionResult.eligibleTxns();
+
         String outputDirToUse = outputDir != null && !outputDir.isBlank() ? outputDir : DEFAULT_EXPORT_DIR;
         List<Path> exportedFiles = new ArrayList<>();
 
         if (exportProfile.isMulti()) {
             Path purchase = writeFile(outputDirToUse, ExportType.PURCHASE.toString(),
                     exportProfile.multi().purchase(),
-                    getFilteredTransactions(transactions, ExportType.PURCHASE), exportProfile.categoryMapping(),
+                    filterByExportType(eligibleTransactions, ExportType.PURCHASE), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
             if (purchase != null) exportedFiles.add(purchase);
 
             Path income = writeFile(outputDirToUse, ExportType.INCOME.toString(),
                     exportProfile.multi().income(),
-                    getFilteredTransactions(transactions, ExportType.INCOME), exportProfile.categoryMapping(),
+                    filterByExportType(eligibleTransactions, ExportType.INCOME), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
             if (income != null) exportedFiles.add(income);
 
             Path invest = writeFile(outputDirToUse, ExportType.INVEST.toString(),
                     exportProfile.multi().investment(),
-                    getFilteredTransactions(transactions, ExportType.INVEST), exportProfile.categoryMapping(),
+                    filterByExportType(eligibleTransactions, ExportType.INVEST), exportProfile.categoryMapping(),
                     true, dateTimeFormatter);
             if (invest != null) exportedFiles.add(invest);
 
             if (exportProfile.multi().lendOrBorrowed() != null) {
                 Path lend = writeFile(outputDirToUse, ExportType.LEND_OR_BORROWED.toString(),
                         exportProfile.multi().lendOrBorrowed(),
-                        getFilteredTransactions(transactions, ExportType.LEND_OR_BORROWED), exportProfile.categoryMapping(),
+                        filterByExportType(eligibleTransactions, ExportType.LEND_OR_BORROWED), exportProfile.categoryMapping(),
                         true, dateTimeFormatter);
                 if (lend != null) exportedFiles.add(lend);
             }
         } else {
             Path single = writeFile(outputDirToUse, ExportType.CONSOLIDATED.toString(),
                     exportProfile.single(),
-                    transactions, exportProfile.categoryMapping(),
+                    eligibleTransactions, exportProfile.categoryMapping(),
                     false, dateTimeFormatter);
             if (single != null) exportedFiles.add(single);
         }
 
-        return exportedFiles;
+        int exportedTxnsCount = exportedFiles.isEmpty() ? 0 : eligibleTransactions.size();
+        return new CsvExportResult(exportedTxnsCount, exclusionResult.excludedTxns(), exportedFiles);
     }
 
     // Find the transactions per provided export input
     private List<NormalizedTransaction> findTransactions(CsvExportInput csvExportInput) {
-        List<NormalizedTransaction> transactions = new ArrayList<>();
         if (csvExportInput.statementId() != null) {
-            transactions = transactionRepository.findReviewedTransactionsByStatementId(csvExportInput.statementId());
-        } else if (csvExportInput.periodStartDate() != null && csvExportInput.periodEndDate() != null) {
-            // find all the transactions from all the statements which fall in this date range
-            List<Statement> statements = statementRepository.findAll();
-            for (Statement st : statements) {
-                List<NormalizedTransaction> filteredTxns = transactionRepository.findReviewedTransactionsByStatementId(st.id())
-                        .stream()
-                        .filter(txn ->
-                                txn.getDatetime().toLocalDate().isAfter(csvExportInput.periodStartDate().minusDays(1))
-                                && txn.getDatetime().toLocalDate().isBefore(csvExportInput.periodEndDate().plusDays(1))
-                        ).toList();
-
-                transactions.addAll(filteredTxns);
-                log.debug("Added {} txn from statement: {}", filteredTxns.size(), st.id());
-            }
+            return transactionRepository.findByStatementId(csvExportInput.statementId());
+        } else if (csvExportInput.periodStartDate() != null
+                && csvExportInput.periodEndDate() != null) {
+            return transactionRepository.findByDateRange(
+                    csvExportInput.periodStartDate().atStartOfDay(),
+                    csvExportInput.periodEndDate().plusDays(1).atStartOfDay()  // periodEndDate is exclusive
+            );
         }
-
-        return transactions;
+        log.warn("No transactions found with given export input: {}", csvExportInput);
+        return List.of();
     }
 
     // Filter and return transactions based on export type
-    private List<NormalizedTransaction> getFilteredTransactions(
+    private List<NormalizedTransaction> filterByExportType(
             List <NormalizedTransaction> transactions, ExportType exportType) {
         return transactions
                 .stream()
                 .filter(txn -> exportType.getTxnTypes().contains(txn.getType()))
                 .toList();
+    }
+
+    private record ExclusionResult (
+            List<NormalizedTransaction> eligibleTxns,
+            Map<ExportExclusionReason, Integer> excludedTxns
+    ) { }
+
+    private ExclusionResult groupExcludedTransactions(List<NormalizedTransaction> transactions) {
+        List<NormalizedTransaction> eligibleTxns = new ArrayList<>();
+        Map<ExportExclusionReason, Integer> excludedTxns = new HashMap<>();
+        for (NormalizedTransaction txn : transactions) {
+            if (txn.getReviewStatus() == null || txn.getReviewStatus() == TxnReviewStatus.PENDING) {
+                excludedTxns.merge(ExportExclusionReason.PENDING_REVIEW, 1, Integer::sum);
+            } else {
+                eligibleTxns.add(txn);
+            }
+        }
+        return new ExclusionResult(eligibleTxns, excludedTxns);
     }
 
     // Write to the export file
@@ -225,11 +251,11 @@ public class CsvExportService {
             boolean useAbsAmount, DateTimeFormatter dateTimeFormatter
     ) throws UnsupportedOperationException {
         return switch (token.toLowerCase()) {
-            case "title" -> getTxnTitle(txn);
-            case "amount", "myshare" -> String.valueOf(getTxnAmount(txn, useAbsAmount));
-            case "total_amount" -> String.valueOf(getTotalAmount(txn, useAbsAmount));
+            case "title" -> txnTitle(txn);
+            case "amount", "myshare" -> String.valueOf(txnAmount(txn, useAbsAmount));
+            case "total_amount" -> String.valueOf(totalAmount(txn, useAbsAmount));
             case "date" -> txn.getDatetime() != null ? dateTimeFormatter.format(txn.getDatetime()) : "";
-            case "category" -> getUserDefinedCategory(categoryMapping, txn.getCategory());
+            case "category" -> userDefinedCategory(categoryMapping, txn.getCategory());
             case "source" -> txn.getCounterparty() != null ? txn.getCounterparty() : "";
             case "id" -> txn.getId() != null ? txn.getId().toString() : "";
             case "direction" -> txn.getDirection() != null ? txn.getDirection().name() : "";
@@ -243,7 +269,7 @@ public class CsvExportService {
         };
     }
 
-    private String getTxnTitle(NormalizedTransaction txn) {
+    private String txnTitle(NormalizedTransaction txn) {
         if (txn.getReviewRemarks() != null && !txn.getReviewRemarks().isBlank()) {
             return txn.getReviewRemarks();
         }
@@ -258,7 +284,7 @@ public class CsvExportService {
         return result.isBlank() ? "Unknown" : result;
     }
 
-    private String getUserDefinedCategory(Map<TxnCategory, String> categoryMapping, TxnCategory category) {
+    private String userDefinedCategory(Map<TxnCategory, String> categoryMapping, TxnCategory category) {
         if (category == null) {
             log.warn("Invalid category: {}", category);
             return "";
@@ -270,7 +296,7 @@ public class CsvExportService {
         return categoryMapping.get(category);
     }
 
-    private double getTxnAmount(NormalizedTransaction txn, boolean useAbsAmount) {
+    private double txnAmount(NormalizedTransaction txn, boolean useAbsAmount) {
         double amount = txn.getMyShare() != null ? txn.getMyShare() : txn.getAmount();
         if (useAbsAmount) {
             return amount;
@@ -281,7 +307,7 @@ public class CsvExportService {
                   : -1 * amount;
     }
 
-    private double getTotalAmount(NormalizedTransaction txn, boolean useAbsAmount) {
+    private double totalAmount(NormalizedTransaction txn, boolean useAbsAmount) {
         if (useAbsAmount) {
             return txn.getAmount(); // txn always stores absolute amount
         }

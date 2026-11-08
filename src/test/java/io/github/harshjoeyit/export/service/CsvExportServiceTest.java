@@ -11,6 +11,9 @@ import io.github.harshjoeyit.core.repository.InMemoryStatementRepository;
 import io.github.harshjoeyit.core.repository.InMemoryTransactionRepository;
 import io.github.harshjoeyit.export.config.ExportConfig;
 import io.github.harshjoeyit.export.model.CsvExportInput;
+import io.github.harshjoeyit.export.model.CsvExportResult;
+import io.github.harshjoeyit.export.model.ExportExclusionReason;
+import io.github.harshjoeyit.export.model.ExportPreflightResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -366,6 +369,98 @@ class CsvExportServiceTest {
         assertThatThrownBy(() -> exportService.export(validStmt, "non-existent-profile", tempDir.toString()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Export profile not found");
+    }
+
+    @Test
+    void exportPreflight_correctlyCountsEligibleAndPendingExcludedTransactions() {
+        NormalizedTransaction reviewed = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 100.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 5, 12, 0),
+                "Store", "S-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+        NormalizedTransaction pending1 = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 200.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 6, 12, 0),
+                "Store 2", "S-2", null, null, TxnReviewStatus.PENDING);
+        NormalizedTransaction pending2 = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 300.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 7, 12, 0),
+                "Store 3", "S-3", null, null, TxnReviewStatus.PENDING);
+
+        transactionRepository.saveTransactions(List.of(reviewed, pending1, pending2));
+
+        CsvExportInput input = CsvExportInput.builder().statementId(statementId).build();
+        ExportPreflightResult preflight = exportService.exportPreflight(input);
+
+        assertThat(preflight.eligibleTxns()).isEqualTo(1);
+        assertThat(preflight.excludedTxnsCount()).isEqualTo(2);
+        assertThat(preflight.totalCount()).isEqualTo(3);
+        assertThat(preflight.hasExcluded()).isTrue();
+        assertThat(preflight.excludedCountByReason(ExportExclusionReason.PENDING_REVIEW)).isEqualTo(2);
+    }
+
+    @Test
+    void export_returnsCsvExportResultWithAccurateCountsAndExclusions() {
+        NormalizedTransaction reviewed = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 100.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 5, 12, 0),
+                "Store", "S-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+        NormalizedTransaction pending = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 200.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 6, 12, 0),
+                "Store 2", "S-2", null, null, TxnReviewStatus.PENDING);
+
+        transactionRepository.saveTransactions(List.of(reviewed, pending));
+
+        CsvExportInput input = CsvExportInput.builder().statementId(statementId).build();
+        CsvExportResult result = exportService.export(input, "default", tempDir.toString());
+
+        assertThat(result.exportedTxns()).isEqualTo(1);
+        assertThat(result.hasExcluded()).isTrue();
+        assertThat(result.excludedTxnsCount()).isEqualTo(1);
+        assertThat(result.excludedTxns().get(ExportExclusionReason.PENDING_REVIEW)).isEqualTo(1);
+        assertThat(result.exportedFiles()).hasSize(1);
+    }
+
+    @Test
+    void export_byDateRange_includesTransactionsUpToEndOfDayAndExcludesNextDay() {
+        LocalDate startDate = LocalDate.of(2026, 10, 1);
+        LocalDate endDate = LocalDate.of(2026, 10, 15);
+
+        // Before range
+        NormalizedTransaction beforeRange = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 50.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 9, 30, 23, 59, 59),
+                "Before", "B-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+
+        // At start boundary (00:00:00 of periodStartDate) -> included
+        NormalizedTransaction atStart = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 100.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 1, 0, 0, 0),
+                "Start", "S-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+
+        // At end of periodEndDate (23:59:59 of periodEndDate) -> included
+        NormalizedTransaction atEndOfDay = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 200.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 15, 23, 59, 59),
+                "EndDay", "E-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+
+        // At start of next day (00:00:00 of periodEndDate + 1 day) -> excluded by findByDateRange
+        NormalizedTransaction nextDay = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 300.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 16, 0, 0, 0),
+                "NextDay", "N-1", null, null, TxnReviewStatus.MANUAL_REVIEWED);
+
+        // Pending inside range -> counted as excluded, not exported
+        NormalizedTransaction pendingInRange = createTxn(statementId, TxnType.PURCHASE, TxnCategory.FOOD, 400.0,
+                TxnDirection.DEBIT, LocalDateTime.of(2026, 10, 10, 12, 0, 0),
+                "Pending", "P-1", null, null, TxnReviewStatus.PENDING);
+
+        transactionRepository.saveTransactions(List.of(beforeRange, atStart, atEndOfDay, nextDay, pendingInRange));
+
+        CsvExportInput input = CsvExportInput.builder()
+                .periodStartDate(startDate)
+                .periodEndDate(endDate)
+                .build();
+
+        ExportPreflightResult preflight = exportService.exportPreflight(input);
+        assertThat(preflight.eligibleTxns()).isEqualTo(2); // atStart + atEndOfDay
+        assertThat(preflight.excludedTxnsCount()).isEqualTo(1); // pendingInRange only
+        assertThat(preflight.totalCount()).isEqualTo(3);
+
+        CsvExportResult result = exportService.export(input, "default", tempDir.toString());
+        assertThat(result.exportedTxns()).isEqualTo(2);
+        assertThat(result.excludedTxnsCount()).isEqualTo(1);
     }
 
     private NormalizedTransaction createTxn(UUID stmtId, TxnType type, TxnCategory category, double amount,
