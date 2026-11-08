@@ -49,7 +49,7 @@ class CsvExportServiceTest {
         // 1. Setup multi-tracker profile ('default')
         LinkedHashMap<String, String> purchaseCols = new LinkedHashMap<>();
         purchaseCols.put("Title", "title");
-        purchaseCols.put("Amount", "amount");
+        purchaseCols.put("Amount", "myshare");
         purchaseCols.put("Date", "date");
         purchaseCols.put("Tags", "category");
         purchaseCols.put("Txn Id", "id");
@@ -57,19 +57,19 @@ class CsvExportServiceTest {
         LinkedHashMap<String, String> incomeCols = new LinkedHashMap<>();
         incomeCols.put("Title", "title");
         incomeCols.put("Date", "date");
-        incomeCols.put("Amount", "amount");
+        incomeCols.put("Amount", "myshare");
         incomeCols.put("Source", "source");
         incomeCols.put("Txn Id", "id");
 
         LinkedHashMap<String, String> investCols = new LinkedHashMap<>();
         investCols.put("Title", "title");
-        investCols.put("Amount", "amount");
+        investCols.put("Amount", "myshare");
         investCols.put("Tags", "source");
         investCols.put("Last investment on", "date");
 
         LinkedHashMap<String, String> lendCols = new LinkedHashMap<>();
         lendCols.put("Title", "title");
-        lendCols.put("Amount", "amount");
+        lendCols.put("Amount", "myshare");
         lendCols.put("Date", "date");
         lendCols.put("Source", "source");
         lendCols.put("Type", "type");
@@ -97,7 +97,7 @@ class CsvExportServiceTest {
         // 2. Setup single-tracker profile ('default2')
         LinkedHashMap<String, String> singleCols = new LinkedHashMap<>();
         singleCols.put("Title", "title");
-        singleCols.put("Amount", "amount");
+        singleCols.put("Amount", "myshare");
         singleCols.put("Date", "date");
         singleCols.put("Tags", "category");
         singleCols.put("Txn Id", "id");
@@ -354,6 +354,75 @@ class CsvExportServiceTest {
         // The "Amount" column should reflect myShare (400.0), NOT total amount (1000.0)
         assertThat(lines.get(1)).contains("400.0");
         assertThat(lines.get(1)).doesNotContain("1000.0");
+    }
+
+    @Test
+    void shouldExportTotalAmountWhenConfiguredWithTotalAmountToken() throws IOException {
+        LinkedHashMap<String, String> customCols = new LinkedHashMap<>();
+        customCols.put("Total", "total_amount");
+        customCols.put("Share", "myshare");
+
+        ExportConfig.Profile profile = new ExportConfig.Profile(
+                "yyyy-MM-dd",
+                null,
+                new ExportConfig.ColumnMappingConfig(customCols),
+                Map.of()
+        );
+        ExportConfig cfg = new ExportConfig(tempDir.toString(), Map.of("total_test", profile));
+        CsvExportService svc = new CsvExportService(cfg, statementRepository, transactionRepository);
+
+        NormalizedTransaction splitTxn = NormalizedTransaction.builder()
+                .id(UUID.randomUUID())
+                .statementId(statementId)
+                .type(TxnType.PURCHASE)
+                .category(TxnCategory.FOOD)
+                .amount(1000.0)
+                .myShare(400.0)
+                .direction(TxnDirection.DEBIT)
+                .datetime(LocalDateTime.of(2026, 10, 5, 12, 0))
+                .reviewStatus(TxnReviewStatus.MANUAL_REVIEWED)
+                .mode(TxnMode.UPI)
+                .build();
+        transactionRepository.saveTransaction(splitTxn);
+
+        CsvExportInput input = CsvExportInput.builder().statementId(statementId).build();
+        CsvExportResult result = svc.export(input, "total_test", tempDir.toString());
+
+        assertThat(result.exportedFiles()).hasSize(1);
+        List<String> lines = Files.readAllLines(result.exportedFiles().get(0));
+        assertThat(lines.get(0)).isEqualTo("Total,Share");
+        // Consolidated single export outputs negative numbers for DEBIT
+        assertThat(lines.get(1)).isEqualTo("-1000.0,-400.0");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTokenIsUnknownOrAmount() {
+        LinkedHashMap<String, String> invalidCols = new LinkedHashMap<>();
+        invalidCols.put("Amount", "amount");
+
+        ExportConfig.Profile profile = new ExportConfig.Profile(
+                "yyyy-MM-dd",
+                null,
+                new ExportConfig.ColumnMappingConfig(invalidCols),
+                Map.of()
+        );
+        ExportConfig cfg = new ExportConfig(tempDir.toString(), Map.of("invalid_token", profile));
+        CsvExportService svc = new CsvExportService(cfg, statementRepository, transactionRepository);
+
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .id(UUID.randomUUID())
+                .statementId(statementId)
+                .type(TxnType.PURCHASE)
+                .amount(100.0)
+                .datetime(LocalDateTime.of(2026, 10, 5, 12, 0))
+                .reviewStatus(TxnReviewStatus.MANUAL_REVIEWED)
+                .build();
+        transactionRepository.saveTransaction(txn);
+
+        CsvExportInput input = CsvExportInput.builder().statementId(statementId).build();
+        assertThatThrownBy(() -> svc.export(input, "invalid_token", tempDir.toString()))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Field token 'amount' is not supported");
     }
 
     @Test

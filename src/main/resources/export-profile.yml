@@ -7,10 +7,10 @@ profiles:
         columns:
           # Key: User-Defined. CSV Column Header
           # Value: Dictates which piece of data to pull from Transaction.
-          #     Canonical tokens: title, amount, myshare, total_amount, date, category, source, id, direction, instrument, statement_id, remarks, reference, mode, type
+          #     Canonical tokens: title, myshare, total_amount, date, category, source, id, direction, instrument, statement_id, remarks, reference, mode, type
 
           "Title": "title"                  # CSV Header = "Title",              Data = title fallback logic
-          "Amount": "amount"                # CSV Header = "Amount",             Data = txn.getMyShare()
+          "Amount": "myshare"               # CSV Header = "Amount",             Data = txn.getMyShare()
           "Date": "date"                    # CSV Header = "Date",               Data = txn.getDatetime()
           "Tags": "category"                # CSV Header = "Tags",               Data = mapped category
           "Txn Id": "id"                    # CSV Header = "Txn ID",             Data = txn.getId()
@@ -18,19 +18,19 @@ profiles:
         columns:
           "Title": "title"
           "Date": "date"
-          "Amount": "amount"
+          "Amount": "myshare"
           "Source": "source"
           "Txn Id": "id"
       investment:
         columns:
           "Title": "title"
-          "Amount": "amount"
+          "Amount": "myshare"
           "Tags": "source"
           "Last investment on": "date"
       lend_or_borrowed:
         columns:
           "Title": "title"
-          "Amount": "amount"
+          "Amount": "myshare"
           "Date": "date"
           "Source": "source"
           "Type": "type"
@@ -57,7 +57,7 @@ profiles:
     single:
       columns:
         "Title": "title"
-        "Amount": "amount"                # -ve or +ve based on direction (income is +ve, purchases are -ve)
+        "Amount": "myshare"                # -ve or +ve based on direction (income is +ve, purchases are -ve)
         "Date": "date"
         "Tags": "category"
         "Txn Id": "id"

@@ -252,7 +252,7 @@ public class CsvExportService {
     ) throws UnsupportedOperationException {
         return switch (token.toLowerCase()) {
             case "title" -> txnTitle(txn);
-            case "amount", "myshare" -> String.valueOf(txnAmount(txn, useAbsAmount));
+            case "myshare" -> String.valueOf(txnAmount(txn, useAbsAmount));
             case "total_amount" -> String.valueOf(totalAmount(txn, useAbsAmount));
             case "date" -> txn.getDatetime() != null ? dateTimeFormatter.format(txn.getDatetime()) : "";
             case "category" -> userDefinedCategory(categoryMapping, txn.getCategory());
