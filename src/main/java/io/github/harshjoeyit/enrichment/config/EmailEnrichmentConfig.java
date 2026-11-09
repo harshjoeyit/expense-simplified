@@ -24,7 +24,8 @@ public record EmailEnrichmentConfig(
             Boolean ssl,
             Integer port,
             Integer timeoutSeconds,
-            List<String> platforms
+            List<String> platforms,
+            List<String> folders
     ) {}
 
     public record EmailAccountConfig(
@@ -35,7 +36,8 @@ public record EmailEnrichmentConfig(
             String username,
             String password,
             List<String> platforms,
-            Integer timeoutSeconds
+            Integer timeoutSeconds,
+            List<String> folders
     ) {
         public EmailAccountConfig withDefaults(DefaultConfig defaults) {
             if (defaults == null) {
@@ -47,10 +49,13 @@ public record EmailEnrichmentConfig(
             List<String> finalPlatforms = (this.platforms != null && !this.platforms.isEmpty())
                     ? this.platforms
                     : defaults.platforms();
+            List<String> finalFolders = (this.folders != null && !this.folders.isEmpty())
+                    ? this.folders
+                    : defaults.folders();
 
             return new EmailAccountConfig(
                     this.name, this.host, finalPort, finalSsl,
-                    this.username, this.password, finalPlatforms, finalTimeout
+                    this.username, this.password, finalPlatforms, finalTimeout, finalFolders
             );
         }
     }

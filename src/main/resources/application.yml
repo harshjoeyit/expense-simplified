@@ -36,8 +36,12 @@ app:
         timeout-seconds: 15
         platforms:
           - SWIGGY
+          - INSTAMART
           - AMAZON
           - FLIPKART
+        folders:
+          - INBOX
+          - "[Gmail]/All Mail"
       accounts: []
 
 logging:

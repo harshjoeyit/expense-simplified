@@ -12,11 +12,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EmailEnrichmentConfigTest {
 
     @Test
-    @DisplayName("Accounts without explicit settings inherit from default-config")
+    @DisplayName("Accounts without explicit settings inherit from default-config including folders")
     void accountsWithoutSettings_inheritDefaultConfig() {
-        DefaultConfig defaults = new DefaultConfig(true, 993, 20, List.of("SWIGGY", "AMAZON", "FLIPKART"));
+        DefaultConfig defaults = new DefaultConfig(
+                true, 993, 20,
+                List.of("SWIGGY", "AMAZON", "FLIPKART"),
+                List.of("INBOX")
+        );
         EmailAccountConfig account = new EmailAccountConfig(
-                "Personal", "imap.gmail.com", null, null, "user@gmail.com", "pass", null, null
+                "Personal", "imap.gmail.com", null, null,
+                "user@gmail.com", "pass", null, null, null
         );
 
         EmailEnrichmentConfig config = new EmailEnrichmentConfig(
@@ -27,6 +32,7 @@ class EmailEnrichmentConfigTest {
         assertThat(config.defaultConfig().ssl()).isTrue();
         assertThat(config.defaultConfig().timeoutSeconds()).isEqualTo(20);
         assertThat(config.defaultConfig().port()).isEqualTo(993);
+        assertThat(config.defaultConfig().folders()).containsExactly("INBOX");
 
         assertThat(config.accounts()).hasSize(1);
         EmailAccountConfig enrichedAccount = config.accounts().get(0);
@@ -34,14 +40,20 @@ class EmailEnrichmentConfigTest {
         assertThat(enrichedAccount.port()).isEqualTo(993);
         assertThat(enrichedAccount.ssl()).isTrue();
         assertThat(enrichedAccount.timeoutSeconds()).isEqualTo(20);
+        assertThat(enrichedAccount.folders()).containsExactly("INBOX");
     }
 
     @Test
-    @DisplayName("Accounts with custom settings override default-config")
+    @DisplayName("Accounts with custom settings override default-config including folders")
     void accountsWithCustomSettings_overrideDefaultConfig() {
-        DefaultConfig defaults = new DefaultConfig(true, 993, 15, List.of("SWIGGY", "AMAZON", "FLIPKART"));
+        DefaultConfig defaults = new DefaultConfig(
+                true, 993, 15,
+                List.of("SWIGGY", "AMAZON", "FLIPKART"),
+                List.of("INBOX")
+        );
         EmailAccountConfig account = new EmailAccountConfig(
-                "Custom", "imap.custom.com", 143, false, "user@custom.com", "pass", List.of("SWIGGY"), 30
+                "Custom", "imap.custom.com", 143, false,
+                "user@custom.com", "pass", List.of("SWIGGY"), 30, List.of("[Gmail]/All Mail")
         );
 
         EmailEnrichmentConfig config = new EmailEnrichmentConfig(
@@ -53,6 +65,7 @@ class EmailEnrichmentConfigTest {
         assertThat(enrichedAccount.port()).isEqualTo(143);
         assertThat(enrichedAccount.ssl()).isFalse();
         assertThat(enrichedAccount.timeoutSeconds()).isEqualTo(30);
+        assertThat(enrichedAccount.folders()).containsExactly("[Gmail]/All Mail");
     }
 
     @Test
