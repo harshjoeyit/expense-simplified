@@ -34,7 +34,7 @@ class DatabaseMigrationTest {
                 }
             }
             System.out.println("Created tables in SQLite: " + tables);
-            assertThat(tables).contains("statements", "transactions", "transaction_splits", "mapping_rules", "friends");
+            assertThat(tables).contains("statements", "transactions", "transaction_splits", "mapping_rules", "friends", "transaction_items");
         }
     }
 }
