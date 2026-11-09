@@ -1,0 +1,27 @@
+# Example configuration for Email Enrichment plugin
+# Copy this file to email-enrichment.yml and supply your IMAP credentials.
+# email-enrichment.yml is ignored by git to protect credentials.
+
+app:
+  plugins:
+    email-enrichment:
+      enabled: true
+      default-config:
+        ssl: true
+        port: 993
+        timeout-seconds: 15
+        platforms:
+          - SWIGGY
+          - AMAZON
+          - FLIPKART
+      accounts:
+        - name: "Personal Gmail"
+          host: "imap.gmail.com"
+          username: "your-email@gmail.com"
+          password: "your-app-password"  # Generate via Google Account -> Security -> 2-Step Verification -> App Passwords
+          # Optional overrides per account:
+          # port: 993
+          # ssl: true
+          # timeout-seconds: 15
+          # platforms:
+          #   - SWIGGY

@@ -12,6 +12,7 @@ spring:
       - optional:classpath:instruments.yml
       - optional:classpath:export-profile.yml
       - optional:classpath:friends.yml
+      - optional:classpath:email-enrichment.yml
 
   datasource:
     url: jdbc:sqlite:${user.home}/.expense-simplified/expense-simplified.db?journal_mode=WAL&foreign_keys=ON&busy_timeout=5000
@@ -26,6 +27,18 @@ spring:
 app:
 #  persistence: in-memory
   persistence: sqlite
+  plugins:
+    email-enrichment:
+      enabled: false
+      default-config:
+        ssl: true
+        port: 993
+        timeout-seconds: 15
+        platforms:
+          - SWIGGY
+          - AMAZON
+          - FLIPKART
+      accounts: []
 
 logging:
   file:
