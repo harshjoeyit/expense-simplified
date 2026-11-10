@@ -3,19 +3,27 @@ package io.github.harshjoeyit.enrichment.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.List;
+import java.util.Map;
 
 @ConfigurationProperties(prefix = "app.plugins.email-enrichment")
 public record EmailEnrichmentConfig(
         boolean enabled,
         DefaultConfig defaultConfig,
+
+        // platform -> aliases
+        Map<String, List<String>> platforms,
         List<EmailAccountConfig> accounts
 ) {
     public EmailEnrichmentConfig {
+        if (platforms == null) {
+            platforms = Map.of();
+        }
         if (accounts == null) {
             accounts = List.of();
-        } else if (defaultConfig != null) {
+        } else {
+            List<String> defaultAccountPlatforms = List.copyOf(platforms.keySet());
             accounts = accounts.stream()
-                    .map(acc -> acc.withDefaults(defaultConfig))
+                    .map(acc -> acc.withDefaults(defaultConfig, defaultAccountPlatforms))
                     .toList();
         }
     }
@@ -24,7 +32,6 @@ public record EmailEnrichmentConfig(
             Boolean ssl,
             Integer port,
             Integer timeoutSeconds,
-            List<String> platforms,
             List<String> folders
     ) {}
 
@@ -39,19 +46,16 @@ public record EmailEnrichmentConfig(
             Integer timeoutSeconds,
             List<String> folders
     ) {
-        public EmailAccountConfig withDefaults(DefaultConfig defaults) {
-            if (defaults == null) {
-                return this;
-            }
-            Boolean finalSsl = this.ssl != null ? this.ssl : defaults.ssl();
-            Integer finalPort = this.port != null ? this.port : defaults.port();
-            Integer finalTimeout = this.timeoutSeconds != null ? this.timeoutSeconds : defaults.timeoutSeconds();
-            List<String> finalPlatforms = (this.platforms != null && !this.platforms.isEmpty())
-                    ? this.platforms
-                    : defaults.platforms();
+        public EmailAccountConfig withDefaults(DefaultConfig defaults, List<String> defaultPlatforms) {
+            Boolean finalSsl = (this.ssl != null) ? this.ssl : (defaults != null ? defaults.ssl() : null);
+            Integer finalPort = (this.port != null) ? this.port : (defaults != null ? defaults.port() : null);
+            Integer finalTimeout = (this.timeoutSeconds != null) ? this.timeoutSeconds : (defaults != null ? defaults.timeoutSeconds() : null);
             List<String> finalFolders = (this.folders != null && !this.folders.isEmpty())
                     ? this.folders
-                    : defaults.folders();
+                    : (defaults != null ? defaults.folders() : null);
+            List<String> finalPlatforms = (this.platforms != null && !this.platforms.isEmpty())
+                    ? this.platforms
+                    : defaultPlatforms;
 
             return new EmailAccountConfig(
                     this.name, this.host, finalPort, finalSsl,

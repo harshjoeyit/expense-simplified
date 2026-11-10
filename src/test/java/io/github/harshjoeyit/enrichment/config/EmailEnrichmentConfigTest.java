@@ -6,17 +6,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EmailEnrichmentConfigTest {
 
     @Test
-    @DisplayName("Accounts without explicit settings inherit from default-config including folders")
-    void accountsWithoutSettings_inheritDefaultConfig() {
+    @DisplayName("Accounts without explicit settings inherit from default-config and app-level platforms map")
+    void accountsWithoutSettings_inheritDefaultConfigAndPlatforms() {
         DefaultConfig defaults = new DefaultConfig(
                 true, 993, 20,
-                List.of("SWIGGY", "AMAZON", "FLIPKART"),
                 List.of("INBOX")
         );
         EmailAccountConfig account = new EmailAccountConfig(
@@ -24,11 +24,18 @@ class EmailEnrichmentConfigTest {
                 "user@gmail.com", "pass", null, null, null
         );
 
-        EmailEnrichmentConfig config = new EmailEnrichmentConfig(
-                true, defaults, List.of(account)
+        Map<String, List<String>> platforms = Map.of(
+                "SWIGGY", List.of("SWIGGY", "INSTAMART"),
+                "AMAZON", List.of("AMAZON", "AMZN"),
+                "FLIPKART", List.of("FLIPKART", "FKART")
         );
 
-        assertThat(config.defaultConfig().platforms()).containsExactly("SWIGGY", "AMAZON", "FLIPKART");
+        EmailEnrichmentConfig config = new EmailEnrichmentConfig(
+                true, defaults, platforms, List.of(account)
+        );
+
+        assertThat(config.platforms()).containsKey("SWIGGY");
+        assertThat(config.platforms().get("SWIGGY")).containsExactly("SWIGGY", "INSTAMART");
         assertThat(config.defaultConfig().ssl()).isTrue();
         assertThat(config.defaultConfig().timeoutSeconds()).isEqualTo(20);
         assertThat(config.defaultConfig().port()).isEqualTo(993);
@@ -36,7 +43,7 @@ class EmailEnrichmentConfigTest {
 
         assertThat(config.accounts()).hasSize(1);
         EmailAccountConfig enrichedAccount = config.accounts().get(0);
-        assertThat(enrichedAccount.platforms()).containsExactly("SWIGGY", "AMAZON", "FLIPKART");
+        assertThat(enrichedAccount.platforms()).containsExactlyInAnyOrder("SWIGGY", "AMAZON", "FLIPKART");
         assertThat(enrichedAccount.port()).isEqualTo(993);
         assertThat(enrichedAccount.ssl()).isTrue();
         assertThat(enrichedAccount.timeoutSeconds()).isEqualTo(20);
@@ -44,11 +51,10 @@ class EmailEnrichmentConfigTest {
     }
 
     @Test
-    @DisplayName("Accounts with custom settings override default-config including folders")
+    @DisplayName("Accounts with custom settings override default-config including folders and platforms")
     void accountsWithCustomSettings_overrideDefaultConfig() {
         DefaultConfig defaults = new DefaultConfig(
                 true, 993, 15,
-                List.of("SWIGGY", "AMAZON", "FLIPKART"),
                 List.of("INBOX")
         );
         EmailAccountConfig account = new EmailAccountConfig(
@@ -56,8 +62,13 @@ class EmailEnrichmentConfigTest {
                 "user@custom.com", "pass", List.of("SWIGGY"), 30, List.of("[Gmail]/All Mail")
         );
 
+        Map<String, List<String>> platforms = Map.of(
+                "SWIGGY", List.of("SWIGGY", "INSTAMART"),
+                "AMAZON", List.of("AMAZON", "AMZN")
+        );
+
         EmailEnrichmentConfig config = new EmailEnrichmentConfig(
-                true, defaults, List.of(account)
+                true, defaults, platforms, List.of(account)
         );
 
         EmailAccountConfig enrichedAccount = config.accounts().get(0);
@@ -69,12 +80,13 @@ class EmailEnrichmentConfigTest {
     }
 
     @Test
-    @DisplayName("Null accounts list defaults to empty list and handles null defaultConfig safely")
+    @DisplayName("Null accounts list defaults to empty list and handles null defaultConfig and null platforms safely")
     void handlesNullSafely() {
-        EmailEnrichmentConfig config = new EmailEnrichmentConfig(false, null, null);
+        EmailEnrichmentConfig config = new EmailEnrichmentConfig(false, null, null, null);
 
         assertThat(config.enabled()).isFalse();
         assertThat(config.defaultConfig()).isNull();
+        assertThat(config.platforms()).isEmpty();
         assertThat(config.accounts()).isEmpty();
     }
 }

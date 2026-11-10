@@ -30,15 +30,20 @@ app:
   plugins:
     email-enrichment:
       enabled: false
+      platforms:
+        SWIGGY:
+          - SWIGGY
+          - INSTAMART
+        AMAZON:
+          - AMAZON
+          - AMZN
+        FLIPKART:
+          - FLIPKART
+          - FKART
       default-config:
         ssl: true
         port: 993
         timeout-seconds: 15
-        platforms:
-          - SWIGGY
-          - INSTAMART
-          - AMAZON
-          - FLIPKART
         folders:
           - INBOX
           - "[Gmail]/All Mail"
