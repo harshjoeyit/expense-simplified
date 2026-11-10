@@ -1,0 +1,687 @@
+Delivered-To: user@example.com
+Received: by 2002:ac8:6890:0:b0:533:2eca:382 with SMTP id m16csp3999283qtq;
+        Sat, 17 Oct 2026 08:51:51 -0700 (PDT)
+X-Received: by 2002:a17:90b:584c:b0:39e:6c68:c77a with SMTP id 98e67ed59e1d1-3acef56f8ccmr2528655a91.48.1792252311150;
+        Sat, 17 Oct 2026 08:51:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1792252311; cv=none;
+        d=google.com; s=arc-20260327;
+        b=oKhNUxhHcGt31Ryi5GNAe3GswnN0M3PMnwVD8k+PVnvyIG+8lPiLTFSsBWH0d/2kWF
+         vhkaSfWwJraIBI9fBMbOCbSK7LpbW+iHX0Lqv/urqwtMAp0puehNKbOVmXsoJidX3f19
+         0D8N6yXp2fbnOTR46yXIdOIB2ReVBGgSnBErEy75G91mBD92sNVJ4DpE0EsEkM/FsXCF
+         NfNvHzg/6XupRuofOBkGXlrc/7J9nx1laPJVNLk8IE037u1o5JDF13xQdStv/TKM8HqT
+         dL1OouKPfGvtyBF8w1HbOk1tgOpsEVrDUWG6KoX1KZcy9kFG0NbUZN4e2wNxDmmuK8gH
+         hw9w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=date:message-id:subject:to:from:mime-version:reply-to
+         :dkim-signature:dkim-signature;
+        bh=pab3KJ8DMIrVGRZsQeCinObHJvrLe7uNbgfnpWlMsGg=;
+        fh=cJ9rBTUtsbGs14v6+aTqnlo2AJZZytKZpu+rpkHzmA8=;
+        b=laZeIEFKoZG5XYn+d73TfvfdWtsihNeYcpntu/1CK/Vq1ZIObKMfwxku1TbfIaAR1F
+         dAZB7nbSSxoUnjhzd1/6juSta6DDN3XWWawjqTfVyFPtV/AdTsLWOagq1V/L4E2Dc+OL
+         HwvAnc3ETqeJIW24FDo0Iq97juGz7FnBY6DeygSUZoCtaQHRS9ecoQbhx3IPKywZ4Z18
+         BIhp6G3c0AH/gRedaX5VIZk/h0kcgGYuGNlK0N0B6nFl10ITh/ggRtcQYAtmaB5H/8LH
+         jlPY91r728lxjZKLUgJu5Yal8vJZ3BV2/52WKgOJV96dB/Yix3ktMoluRUpM2TPaL1k1
+         OAhA==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@rmt.flipkart.com header.s=sctrans header.b=oAE5r45t;
+       dkim=pass header.i=@sendclean.net header.s=sctrans1 header.b=xM8wqNgG;
+       spf=pass (google.com: domain of b-340665708-user=example.com@sctrans.rmt.flipkart.com designates 45.115.29.47 as permitted sender) smtp.mailfrom="b-340665708-user=example.com@sctrans.rmt.flipkart.com";
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=flipkart.com
+Return-Path: <b-340665708-user=example.com@sctrans.rmt.flipkart.com>
+Received: from sender47.sendclean.email (sender47.sendclean.email. [45.115.29.47])
+        by mx.google.com with ESMTPS id 41be03b00d2f7-cd654b121e2si8455964a12.384.2026.10.17.08.51.50
+        for <user@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 17 Oct 2026 08:51:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of b-340665708-user=example.com@sctrans.rmt.flipkart.com designates 45.115.29.47 as permitted sender) client-ip=45.115.29.47;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@rmt.flipkart.com header.s=sctrans header.b=oAE5r45t;
+       dkim=pass header.i=@sendclean.net header.s=sctrans1 header.b=xM8wqNgG;
+       spf=pass (google.com: domain of b-340665708-user=example.com@sctrans.rmt.flipkart.com designates 45.115.29.47 as permitted sender) smtp.mailfrom="b-340665708-user=example.com@sctrans.rmt.flipkart.com";
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=flipkart.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=rmt.flipkart.com;
+ q=dns/txt; s=sctrans; bh=pab3KJ8DMIrVGRZsQeCinObHJvrLe7uNbgfnpWlMsGg=;
+ h=from:reply-to:subject:to:mime-version:content-type;
+ b=oAE5r45thy5amzmvYxSuz9Cus/v1XJWGb7pYu29c5BAorxfEk4z932/z2/PUUIlDWrf8AqzgM0x+
+ DTTV1dK5SVx4hGiPvo0bPIPkfMq52j8FLvw3GA+DpHWJ4/KR/dfH1vqamuhwX4PYEmjcbrg28WR8
+ vx+FMg2NLifxIEmZ1Nc=
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sendclean.net;
+ q=dns/txt; s=sctrans1; bh=pab3KJ8DMIrVGRZsQeCinObHJvrLe7uNbgfnpWlMsGg=;
+ h=from:reply-to:subject:to:mime-version:content-type;
+ b=xM8wqNgGrHgjhrCrT7UyWhA38RZdsgw1P8P4aT3boL/ww6ULpykeABYnKpU4sF2ZR9H/B/WaThmv
+ k2qC4sgHK+00eQpMcAbylqHiZEU5sgB4w0tu51EYzk9+iwaAdty8HtQUmXl+KwpRNg+KQj4aXIkL
+ LwMKJ58eum/sjTDDDbct4xp85qPFBLde5NsyklaqBOVJLMthpqJZ7L9J54O8VF7uRTl23PyP2Mk9
+ ZC7kTH2ihq+SY9Pn1E+c8oDJBXS6sWg6lqdvAFxEAsiFdGU3WmUxpYlwivPBqEGVsENaH2Sm3UO6
+ 5hrXg8vVlK5lu1l1KcVs5ktucqkU9Q2cRuSriA==
+Received: from (10.17.22.187) by sender47.sendclean.email id
+ 66125874-9AE3-4BC8-9A77-54ED800D0E94.23 for <user@example.com>;
+ Sat, 17 Oct 2026 15:51:48 +0000 (envelope-from
+ <b-340665708-user=example.com@sctrans.rmt.flipkart.com>)
+Reply-To: Flipkart <noreply@flipkart.com>
+X-Mailer: STES v1.1
+MIME-Version: 1.0
+X-Unique-ID: <1114d1b0-0b46-3e96-0fc0-4d08c2657a39@rmt.flipkart.com>
+X-App-Header: SC-TRNS-FK
+From: Flipkart <noreply@rmt.flipkart.com>
+To: user@example.com
+Subject: Your Order for Hawkins Triply Stainle...+1 more product has been
+ successfully placed
+Message-ID: <1114d1b0-0b46-3e96-0fc0-4d08c2657a39@rmt.flipkart.com>
+Date: Sat, 17 Oct 2026 15:51:48 +0000
+X-Mta-Unique-Id:
+ eqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.1
+Content-Type: multipart/alternative;
+ boundary="----sm-b=_-?=_1-17922523088010.1045113722115647"
+
+------sm-b=_-?=_1-17922523088010.1045113722115647
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
+
+.
+
+------sm-b=_-?=_1-17922523088010.1045113722115647
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.=
+w3.org/TR/html4/loose.dtd">
+<html xmlns=3D"http://www.w3.org/1999/a" xmlns:v=3D"urn:schemas-microsoft-c=
+om:vml" xmlns:o=3D"urn:schemas-microsoft-com:office:office">
+ <head>=20
+  <meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-8" =
+/>=20
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width, =
+initial-scale=3D1">=20
+  <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge">=20
+  <meta name=3D"format-detection" content=3D"date=3Dno">=20
+  <meta name=3D"format-detection" content=3D"telephone=3Dno">=20
+  <title>Flipkart.com</title>=20
+  <style type=3D"text/css"> @media screen and (max-width: 599px) {} @media =
+screen and (max-width: 400px) { .container { width: 600px; max-width: =
+600px; } } </style>=20
+  <style type=3D"text/css"> /* .container-padding { padding-left: 24px; =
+padding-right: 24px; }*/ .link a { text-decoration: none; } .link a:hover {=
+ text-decoration: underline; color: #2175ff !important; } .content { =
+background-color: #ffffff; } .col { font-family: Helvetica, Arial, =
+sans-serif; font-size: 14px; color: #333333; width: 100%; } .col p { =
+text-align: left; } a[href^=3D"x-apple-data-detectors:"], =
+a[x-apple-data-detectors] { color: inherit !important; text-decoration: =
+none !important; font-size: inherit !important; font-family: inherit !=
+important; font-weight: inherit !important; line-height: inherit !=
+important; } body { margin: 0; padding: 0; -ms-text-size-adjust: 100%; =
+-webkit-text-size-adjust: 100%; } table { border-spacing: 0; } table td { =
+border-collapse: collapse; } .ExternalClass, .ExternalClass p, .=
+ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass =
+div { line-height: 100%; } table { mso-table-lspace: 0pt; mso-table-rspace:=
+ 0pt; } .res p { text-align: right; } img { -ms-interpolation-mode: =
+bicubic; } .new-width1 { width: 25% !important; } .new-width2 { width: 75% =
+!important; } .yshortcuts a { border-bottom: none !important; } =
+</style>=20
+ </head>=20
+ <body class=3D"body" style=3D"margin:0; padding:0;" bgcolor=3D"#F0F0F0" =
+leftmargin=3D"0" topmargin=3D"0" marginwidth=3D"0" marginheight=3D"0">
+  <img style=3D"width:1px;height:1px;" src=3D"http://l.flipkart.=
+com/t/open/Pqt5dGC5tS9HKrZzbsZoVL-jkPHbmCSpnu_6Iy_iU_0A3pAqgj56vzDU8IzfSOO4=
+vqqdIcKL3cRlmjesLaH0dBbjchMqIQFaqd5HDrPCZJ9xsXYo47VKhJLOBAVY8T3dK-gT99E3P90=
+dRJ7dfl6czDwstaqxAbsyA7DLvIiKYYI_t9mIAU_zWLN59IgsJtErPwwQukA9ldHuYRUAIYp6TN=
+cGywXxShTiCYNeSKJLF7ZJl_zgg8JQpoGP_Nh_8-8qokZd_zCJ2nYmyNtwuBW1p0lNcnboFFWpU=
+kkSvmxsZph77mQNOXIk-IA1NoZr3nAljCWoT9wqoGwKcVO5hwGfzg=3D=3D?e=3Dtrue">=20
+  <table style=3D"width:100% !important;">=20
+   <tbody>
+    <tr background=3D"https://rukminim1.flixcart.com/www/834/60/promos/28/0=
+8/2017/de0c263a-65a0-4f4b-b141-5062917b7d9b.png?q=3D100" width=3D"834px" =
+height=3D"60">=20
+     <td>=20
+      <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0" =
+height=3D"60" style=3D"width:600px !important;text-align: center;margin:0 =
+auto;">=20
+       <tbody>
+        <tr>=20
+         <td>=20
+          <table style=3D"width: 640px;max-width: 640px;padding-right: =
+20px;padding-left: 20px;">=20
+           <tbody>
+            <tr>=20
+             <td style=3D"width: 40%;text-align: left;padding-top:5px;"><a =
+style=3D"text-decoration:none;outline:none;color:#ffffff;font-size: 13px;" =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl02JowdY1joS%7BbX6dMzwDSbrbCm%60nxVfFiI6cxymuk.qX.=
+ElMiXWWYU%5BIwwLZU1q6vq3dIgH8OfFSplsc9LxWgj9i%3A9Ru51flnjr7GNXJFHfFuL2%5B%7=
+BfE3OqDixUhOg6gNXtGQenoy2DmoJUpPY5y2FS4jR.rlXNhhzZ9sLel7BeZpfkUEeYVgp9TzF%5=
+BLNM.PYVCQt%60j.nZOxm%5BZfk4Q.SYvuqdly8H5YwurGLLNg5jFfxp7TBx%60Qc6wmONHUMOn=
+nvkyFs1rL%7BTNErSIyl9y4Mqi9MGyOqYWhsCyTgM6.oRFIjU7C1g7F4tlV%3AqJn%5BCVFKbVs=
+b%60jKH1vm7Upnxfx%7Bhj4JDilE.I4wTnlVSkxr%3A1t8t6f8%3AuFXJcC.=
+%603CLi6OlukJsyjSwEw%3A%60VY9V6vGirC4HOZukGQoeL1fYtRDw%7B9Uopkn%60bK1PS2.=
+N9KZn1Ez9ehIBR.Bf1HGB22cR9U3YuitU65bj6gWmuF87WSC%7B8xOSTNKbiQ4DrhcBqyV8nIB%=
+5B%60P%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-=
+54ED800D0E94.23.1&e=3Ds1" target=3D"_blank"><img border=3D"0" src=3D" =
+https://rukminim1.flixcart.com/www/114/30/promos/15/12/2017/97b55f5a-4c8b-4=
+10d-a2b4-81f01ecb411e.png?q=3D100" alt=3D"Flipkart.com" =
+style=3D"border:none;"></a></td>=20
+             <td style=3D"width: 60%;text-align: right;padding-top:5px;"> =
+<p style=3D"color: rgba(255, 255, 255, 0.8); font-family: Arial;font-size: =
+16px;text-align: right;color: #ffffff;; font-style: normal; font-stretch: =
+normal; position: relative;">Order <span style=3D"font-weight: =
+bold">Placed</span> </p> </td>=20
+            </tr>=20
+           </tbody>
+          </table> </td>=20
+        </tr>=20
+       </tbody>
+      </table> </td>=20
+    </tr>=20
+    <tr>=20
+     <td>=20
+      <table border=3D"0" width=3D"100%" height=3D"100%" cellpadding=3D"0" =
+cellspacing=3D"0" bgcolor=3D"#f5f5f5">=20
+       <tbody>
+        <tr>=20
+         <td align=3D"center" valign=3D"top" bgcolor=3D"#f5f5f5">=20
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" =
+style=3D"width: 640px; max-width: 640px;padding-right: 20px;padding-left: =
+20px;background-color: #fff;padding-top:20px;">=20
+           <tbody>
+            <tr>=20
+             <td class=3D"container-padding content" align=3D"left">=20
+              <table width=3D"350" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"left" class=3D"force-row">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top"> <p style=3D"font-family:=
+ Arial; color: #878787;font-size: 12px;font-weight: normal;font-style: =
+normal;font-stretch: normal; margin-top:0px;line-height: =
+14px;padding-top:0px;margin-bottom:7px;"> Hi <span style=3D"font-weight:bol=
+d;color: #191919;"> Sample User,</span> </p> <p style=3D"font-family: =
+Arial;font-size: 12px;color: #878787;line-height:14px;padding-top:0px;margi=
+n-top:0px;margin-bottom:7px;">Your order has been successfully placed.</p> =
+</td>=20
+                </tr>=20
+               </tbody>
+              </table>=20
+              <table width=3D"250" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"right" class=3D"force-row">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top"> <p style=3D"font-family:=
+ Arial; color: #747474;font-size: 11px;font-weight: normal;text-align: =
+right;font-style: normal;line-height:14px;font-stretch: =
+normal;margin-top:0px;padding-top:0px; color: #878787;margin-bottom:7px;">O=
+rder placed on <span style=3D"font-weight:bold;color: #000">Oct 17, =
+2026</span> </p> <p style=3D"font-family: Arial;font-size: 11px;color: =
+#878787;line-height:14px;text-align: right;padding-top:0px;margin-top:0;mar=
+gin-bottom:7px;">Order ID <span style=3D"font-weight: bold;color: =
+#000;">OD438910753848039100</span> </p> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+            <tr>=20
+             <td class=3D"container-padding" align=3D"left">=20
+              <table width=3D"120" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"left" class=3D"force-row new-width1" =
+style=3D"padding-top:0px;padding-bottom:10px;max-width:120px; ">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"link" valign=3D"middle" width=3D"120" =
+align=3D"center"><img border=3D"0" src=3D"https://rukminim1.flixcart.=
+com/www/121/121/promos/23/04/2020/ba792d5d-51de-4cb0-b8b0-22d734ccdea1.png"=
+ alt=3D"image" style=3D"border:none;max-width:80px;max-height:80px;margin-t=
+op:0px;"></td>=20
+                </tr>=20
+               </tbody>
+              </table>=20
+              <table width=3D"455" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"right" class=3D"force-row new-width2" =
+style=3D"padding-top:15px;padding-bottom:20px;min-width:77.5%; ">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top" align=3D"left"> <p =
+style=3D"font-family: Arial;font-size: 12px;color: #212121;margin-top:0;lin=
+e-height:15px;margin-bottom:5px;">We are committed to serving you with =
+utmost regard for your safety. Know more about our precautionary measures =
+<a target=3D"_blank" href=3D"https://fpktrans.SendClean.net/c/?=
+u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u0dmjdl0Kcf4VrR2Qvje%5Bpmp6BdCOeBMl%7B5djER=
+cGBQvY6ixppk6Pi%3AntNjkDUHLLC2Hru62T2zEceLm%3AMS6Y3gtsXu2okHYNLprcg9QJ2xVZ8=
+Sdlj%60SVy1Mvry%5BFC1Mny%5B%5BnUmbCF4h%60Sfqew5b1HZu97eR1hIfl2v16%7B%5BxPeu=
+xFtyK6UUXbeM5mT2QVEy6bsXO.J%5B7c%3APsSc3otMe5BVY6r3DzRfCiYVjTI2hc5J6IXtpjEp=
+kI6V2XxxtyehH5j3nk5oJJoknrW.bdLu%7BIy51..%601IJ%3A5OXntC935wkI%60%3AfmFtZox=
+9OkJtIrGStEKL2odWb.YHc%3AOgCzGDE%60%60bEnluEwoNqf4Je6LWx4r1uin5vOynTKdtxqW5=
+SPHIuq514q.JK5cfS6Yp5G55cPhbSx2zGu2KbPGB7RNT1jnjwyfFkfvOcOj%7Bgtvbbrxq%3Ae3=
+fghocTBBMDOGTkGBk%60G%3AmUZB5TjGPnHHFr2.d%60Vob4i%3AVOlh8Qjp%5Bf225WyMpKJ6.=
+g9s%5Bhelz%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9=
+A77-54ED800D0E94.23.1&e=3Ds1" style=3D"color: #2175ff;font-size: =
+12px;">here</a>. Please note, the delivery date of your order may change =
+based on the government's zonal advisory in your area. </p> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+            <tr>=20
+             <td class=3D"container-padding content" border=3D"1" =
+align=3D"left" style=3D"background-color: rgba(245, 245, 245, 0.=
+5);background: rgba(245, 245, 245, 0.5);border:.5px solid =
+#6ed49e;border-radius:2px;padding-top: 20px;padding-bottom:20px;border-colo=
+r:#6ed49e; border-width:.08em; border-style:solid; border:.08em solid =
+#6ed49e;">=20
+              <table width=3D"360" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"left" class=3D"force-row" =
+style=3D"margin-bottom:20px;padding-left:15px;">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top"> <img =
+src=3D"https://rukminim1.flixcart.com/www/270/28/promos/07/03/2018/f0e74e39=
+-2481-4e34-b8f6-d2ab80ac15fe.png?q=3D100" class=3D"journey" alt=3D"journey"=
+ style=3D"margin-bottom:20px;"> <p style=3D"font-family: Arial;font-size: =
+12px;line-height: 1.42;color: #212121;margin-top:0px;margin-bottom:20px;"><=
+span style=3D"display:inline-block;width:125px;vertical-align:top">Delivery=
+ </span><span style=3D"font-family: Arial;font-size: 12px;font-weight: =
+bold;line-height: 1.42;color: #139b3b;display:inline-block;width:220px;">by=
+ Sun 25, Oct 2026</span> <span style=3D"display:block;font-family: =
+Arial;font-size: 10px;color: #878787;margin-top:4px;">Please refer to items=
+ list for delivery time of individual items </span> </p> <p =
+style=3D"font-family: Arial;font-size: 12px;line-height: 1.42;color: =
+#212121;margin-bottom:20px;margin-top:0px;"><span style=3D"display:inline-b=
+lock;width:125px;min-width:125px;max-width:125px;">Amount Paid</span><span =
+style=3D"font-family: Arial;font-size: 12px;font-weight: bold;line-height: =
+1.42;color: #139b3b;display:inline-block;width:220px;">=E2=82=A8. 1439 =
+</span></p> <p style=3D"margin-bottom: 0px;margin-top:0"><a =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl02JowdY1joS%7BbX6dMzwDSbiYsR%5BzXTuLbhzc7UPhJu5GnosjX..=
+oNyhF2xWuMoZi1tF8dcqK%3ATRcLTbG8.yp%5BF75S%3AZg.yDT%7BSWhum6NYxBVqz53XecI%3=
+A7iOWKreVblSQlwh1mKvdmH3k8Mjq3.NEvt4YGd%3AK6W%60xc.OH%3A%60n5so5zCPySfJtXyE=
+R%60jBbkeMrQ8.qmpf%60OWw6tnfIu2ToqjXDsXKOTbxmj2%7B9fbLkg%5B8%3AjDH%5Bqe5EEJ=
+drY4HcTzPNrd.hO28%3Aq%3ABjf4V8WIgCTHLpkRffNv%5B%5B%3AcZKgUY5SkjYUKIcGJ.=
+Sb1thi.bDJ8HghvSO6ptes2Hu%5B2mYDK%60mr6yXOEChqPTFc7qMdZf%5BtUxz%602umGZwXfU=
+q1Joyp.VHR6V%60xl8jQQYsTe%5Bq%3AgYe6dQqRIlfK2V.GzGn59geTh9M5OsqMgez74of%7BZ=
+U2csxKqS%7BL8p%7BKG%5BxPtC%60oN95popFYRiBfEIn%3A4t%3Aly1%3A.sVGNmEsZBk.=
+NgPvub9iCO7%3ARLMsOIFgw3o%60h4TUNd8Odnj%60tc1x%3ArkC%5BuOMM%7BZGkX9%606x%3E=
+%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED80=
+0D0E94.23.1&e=3Ds1" style=3D"background-color: rgb(41, 121, 251);color: =
+#fff;padding: 0px;border:0px;font-size: 14px;box-shadow: 0px 1px 3px 1px =
+rgba(41,121,251,0.3);display: inline-block;margin-top:0px;cursor: =
+pointer;border-radius:2px;text-decoration: none;width:160px;text-align:cent=
+er;line-height:32px;line-height:32px;" target=3D"_blank">Manage Your =
+Order</a></p> </td>=20
+                </tr>=20
+               </tbody>
+              </table>=20
+              <table width=3D"225" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"right" class=3D"force-row" =
+style=3D"margin-bottom:20px;padding-right:15px;">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top" align=3D"left">=20
+                  <div class=3D"address" style=3D"max-width: =
+220px;padding-top:0px;margin-bottom:20px;">=20
+                   <p style=3D"font-family: Arial;font-size: =
+14px;font-weight: bold;line-height:20px; color: #212121;margin-top:0px;marg=
+in-bottom:4px;">Delivery Address</p>=20
+                   <p style=3D" font-family: Arial;font-size: =
+12px;line-height: 1.42;color: #212121;margin-top:0px;margin-bottom:0"> =
+Sample Recipient <br> <span style=3D" font-family: Arial;font-size: =
+12px;line-height: 1.42;color: #212121;"> 123 Sample Street, Near Central Park =
+Hanuman Mandir Area <br> Sample Area <br> Sample City, State, =
+560001 </span> </p>=20
+                  </div> <p style=3D"line-height: 1.=
+56;margin-top:0;margin-bottom:0"><span style=3D"font-family: =
+Arial;font-size: 14px;font-weight: bold;text-align: left;color: =
+#212121;display:block;line-height:20px;margin-bottom:4px;">SMS updates sent=
+ to</span><span style=3D"font-family: Arial;font-size: 12px;color: =
+#212121;">9999999999</span></p> </td>=20
+                </tr>=20
+               </tbody>
+              </table>=20
+              <table width=3D"600" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" align=3D"left" class=3D"force-row" =
+style=3D"padding-left:15px;padding-right:15px;">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"col" valign=3D"top" align=3D"left"> <p =
+style=3D"font-family: Arial;font-size: 12px;text-align: left;color: =
+#212121;padding-top: 0px;padding-bottom: 0px;line-height: =
+19px;margin-top:0;margin-bottom:0;"> You will receive the next update when =
+the items in your order are packed/shipped by the seller. Please note, =
+sellers ship items based on their availability so they can reach you within=
+ the shortest possible time possible. Due this, you may get items from the =
+same orders as different shipments and you can easily track them <a =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl02JowdY1joS%7BbX6dMzwDSbiYsR%5BzXTuLbhzc7UPhJu5GnosjX..=
+oNyhF2xWuMoZi1tF8dcqK%3ATRcLTbG8.yp%5BF75S%3AZg.yDT%7BSWhum6NYxBVqz53XecI%3=
+A7iOWKreVblSQlwh1mKvdmH3k8Mjq3.NEvt4YGd%3AK6W%60xc.OH%3A%60n5so5zCPySfJtXyE=
+R%60jBbkeMrQ8.qmpf%60OWw6tnfIu2ToqjXDsXKOTbxmj2%7B9fbLkg%5B8%3AjDH%5Bqe5EEJ=
+drY4HcTzPNrd.hO28%3Aq%3ABjf4V8WIgCTHLpkRffNv%5B%5B%3AcZKgUY5SkjYUKIcGJ.=
+Sb1thi.bDJ8HghvSO6ptes2Hu%5B2mYDK%60mr6yXOEChqPTFc7qMdZf%5BtUxz%602umGZwXfU=
+q1Joyp.VHR6V%60xl8jQQYsTe%5Bq%3AgYe6dQqRIlfK2V.GzGn59geTh9M5OsqMgez74of%7BZ=
+U2csxKqS%7BL8p%7BKG%5BxPtC%60oN95popFYRiBfEIn%3A4t%3Aly1%3A.sVGNmEsZBk.=
+NgPvub9iCO7%3ARLMsOIFgw3o%60h4TUNd8Odnj%60tc1x%3ArkC%5BuOMM%7BZGkX9%606x%3E=
+%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED80=
+0D0E94.23.1&e=3Ds1">here</a>. </p> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+            <tr>=20
+            </tr>=20
+           </tbody>
+          </table>=20
+          <table border=3D"0" width=3D"600" cellpadding=3D"0" =
+cellspacing=3D"0" class=3D"container" style=3D"padding-right: =
+20px;padding-left: 20px;background-color: #fff;width: 642px;max-width: =
+642px;padding-top:0px;padding-bottom:0px;">=20
+           <tbody>
+            <tr>=20
+             <td>=20
+              <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" =
+width=3D"100%" style=3D"padding-bottom:20px;border-bottom:1px solid =
+#f0f0f0;">=20
+               <tbody>
+                <tr>=20
+                 <td class=3D"container-padding" align=3D"left">=20
+                  <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" =
+align=3D"left" class=3D"col">=20
+                   <tbody>
+                    <tr>=20
+                     <td valign=3D"middle" width=3D"120" align=3D"center" =
+class=3D"link" style=3D"padding-top:20px;"> <a style=3D"color:#027cd8; =
+text-decoration:none;outline:none;color:#fff;font-size: 13px;" =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl0er1Ce35n32H%60EpWRu%5BUIVHRMmK.d4cWdxT7X9zr.jE8TtzZOIQGKkqjZHLkkSJBy=
+5dpf%3A87g8oBU2srXUzhkOp5KxF%7BUMsxyNgsV47uhBrwWuEzsHmMK%7BHJ%5B%3A7%5BpHXv=
+x4UPR%7B6dLS55dST9r2Z.bR3Pw%60Bl4HO%60PnY4ZHTCJ%3ANFPtvD1t7n%7BemYs8GiH3SdW=
+%7BzZ%7BQ9jqb57cXPGEfMy%7B68DZ1SUsuX4xt%5B5%605OF%5B6olGh2oFSdo8h%5BQwuHqQZ=
+FJwkzvSME1i%3AKr%5B8wEBBcB6%7BKfEn%3An3cdkYWct4Cx4Pf.=
+g58L88t%7BE%5BZsz8q%60WuSjOus3fBQkrXbeRMDHpIUdbnKoIObWKqIqpZNfK5F4StBHHJrPK=
+F%7BQ6sX5y%5BEJL41.vWfjrD2GSFnd%7B7bMFXZ8iK5%7BoVJLF%3A82kdHrHt%5BhKw%60gX2=
+cZGujM5p9t9VB6lj3hM1ubqFCFWQ9gcMQsWUBCcHG3jc9nfsy9%5BLLeyhxe.=
+S7Kjeuo%5ByhWGqR1m%3A%7ByD1qn6b.YFYqBI11HhgY%60ObsqN9W5r%60bwJozIPnifhk2ouW=
+2Z8Ej2QdShsF5VKsorOQGB7gbcZZnWuJ%7B.hIYltXnxvY%7Bx%3E%3E%40f%3Eusvf&p=3Deqd=
+sqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.1&e=3Ds1"=
+ target=3D"_blank"><img border=3D"0" src=3D"https://img.fkcdn.=
+com/image/xif0q/pot-pan/a/t/i/triply-stainless-steel-tawa-sstv26-hawkins-or=
+iginal-imahra5eehyqehmz.jpeg" alt=3D"Hawkins Triply Stainless Steel Tawa =
+(SSTV26) Tawa 26 cm diameter" style=3D"border:none;max-width:125px;max-heig=
+ht:125px;"></a> </td>=20
+                     <td valign=3D"top" align=3D"left" =
+style=3D"padding-top:20px;padding-left:15px;"> <p style=3D"margin-top:0;mar=
+gin-bottom:7px;" class=3D"link"> <a href=3D"https://fpktrans.SendClean.=
+net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u0dmjdl0er1Ce35n32H%60EpWRu%5BUIVHRM=
+mK.d4cWdxT7X9zr.jE8TtzZOIQGKkqjZHLkkSJBy5dpf%3A87g8oBU2srXUzhkOp5KxF%7BUMsx=
+yNgsV47uhBrwWuEzsHmMK%7BHJ%5B%3A7%5BpHXvx4UPR%7B6dLS55dST9r2Z.=
+bR3Pw%60Bl4HO%60PnY4ZHTCJ%3ANFPtvD1t7n%7BemYs8GiH3SdW%7BzZ%7BQ9jqb57cXPGEfM=
+y%7B68DZ1SUsuX4xt%5B5%605OF%5B6olGh2oFSdo8h%5BQwuHqQZFJwkzvSME1i%3AKr%5B8wE=
+BBcB6%7BKfEn%3An3cdkYWct4Cx4Pf.g58L88t%7BE%5BZsz8q%60WuSjOus3fBQkrXbeRMDHpI=
+UdbnKoIObWKqIqpZNfK5F4StBHHJrPKF%7BQ6sX5y%5BEJL41.vWfjrD2GSFnd%7B7bMFXZ8iK5=
+%7BoVJLF%3A82kdHrHt%5BhKw%60gX2cZGujM5p9t9VB6lj3hM1ubqFCFWQ9gcMQsWUBCcHG3jc=
+9nfsy9%5BLLeyhxe.S7Kjeuo%5ByhWGqR1m%3A%7ByD1qn6b.YFYqBI11HhgY%60ObsqN9W5r%6=
+0bwJozIPnifhk2ouW2Z8Ej2QdShsF5VKsorOQGB7gbcZZnWuJ%7B.=
+hIYltXnxvY%7Bx%3E%3E%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9=
+AE3-4BC8-9A77-54ED800D0E94.23.1&e=3Ds1" target=3D"_blank" =
+style=3D"font-family: Arial;font-size: 14px;font-weight: normal;font-style:=
+ normal;font-stretch: normal; line-height: 20px;color: #212121; =
+text-decoration: none !important;word-spacing: 0.2em;max-width: =
+360px;display:inline-block;min-width:352px;width:352px;">Hawkins Triply =
+Stainless Steel Tawa (SSTV26) Tawa 26 cm diameter</a> </p> <p =
+style=3D"line-height:18px;margin-top:0px; margin-bottom: 2px;font-family: =
+Arial;font-size: 12px;color: #212121;">Delivery <span =
+style=3D"line-height:18px;font-family: Arial;font-size: 12px;font-weight: =
+bold;color: #139b3b;"> by Sun, Oct 25, 2026 </span> </p> <p =
+style=3D"line-height:18px;margin-top:0px; margin-bottom: 2px;font-family: =
+Arial;font-size: 12px;color: #212121;"> Seller: NARANGUTENSILS <span =
+style=3D"float:right;font-size:12px;padding-right:5px;"> </span> </p> <p =
+style=3D"line-height:18px;margin-top:0px; margin-bottom: 0px;font-family: =
+Arial;font-style: normal;font-size: 12px;font-stretch: normal;color: =
+#212121;">Qty: 1 <span style=3D"float:right;font-size:12px;padding-right:5p=
+x;"> </span> </p> </td>=20
+                    </tr>=20
+                   </tbody>
+                  </table> </td>=20
+                </tr>=20
+                <tr>=20
+                 <td class=3D"container-padding" align=3D"left">=20
+                  <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" =
+align=3D"left" class=3D"col">=20
+                   <tbody>
+                    <tr>=20
+                     <td valign=3D"middle" width=3D"120" align=3D"center" =
+class=3D"link" style=3D"padding-top:20px;"> <a style=3D"color:#027cd8; =
+text-decoration:none;outline:none;color:#fff;font-size: 13px;" =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl09ihl%5BWo97dYpsT18KuCfkirsBSZyf6GX8%609jnn36y.=
+n4vLg3qI89%7BCPrDHHrYpp.ml6yMheu4.N%7B7bx5%60qrYZRvQpIqS8P7e6oqnWWyJUlv46Op=
+Izg8yYM2vUeI1RYeRbd71kTi5xk6gr7nM%7BrlTFqf9n%7B5cTfrX7%5B1XbfzuN%7BDc.=
+%3AkgYrbpcEmbMJUK%5Bmf78GNNLc%60Coq%7B%7BZ7CWOlDKUZmZHBrMKUyDDKB.5ywI.=
+KPLl27EpJ%3AoTtpNeie%3Acdko7LxdLPdCQ6qNxHbfzSk7jtsSgICQne5g%7BZFsg3YDKeu7z6=
+ZBNnU%7BGFVwV%5BItoeYlF%7Bkj3y%60Du9EIQbHuJbO2Vq5PFiR%3A1wMDh%60tf4dMSTz5j8=
+uCOTf%3Atd7VgqonlllCi%7B23NvYcqcbJ7%7B.wlnl%60CCk%5B6Q7XlN%5B3OyBdkIJlu7P45=
+dzGTQiJ4ktgL3L6%7Bo13RKjN.wL7ef1l2cCUn9ZQU.o.46TKekqOW%3AKl1JpVgmmx3Zzmhiv5=
+VSBNcjl3SxqDp848mVd2%60DsdJ6UR7Fmj%5BUX%60jbKjINVI6zoBfLnu%5BE%7BvdEgqItcYI=
+PJIsoLHry68l%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8=
+-9A77-54ED800D0E94.23.1&e=3Ds1" target=3D"_blank"><img border=3D"0" =
+src=3D"https://img.fkcdn.com/image/xif0q/cases-covers/back-cover/m/e/w/cndy=
+bmp-one-nrdce2lit-blk-micvir-original-imahf7dazpyssy37.jpeg" alt=3D"Micvir =
+Back Cover for OnePlus Nord CE 2 Lite 5G" style=3D"border:none;max-width:12=
+5px;max-height:125px;"></a> </td>=20
+                     <td valign=3D"top" align=3D"left" =
+style=3D"padding-top:20px;padding-left:15px;"> <p style=3D"margin-top:0;mar=
+gin-bottom:7px;" class=3D"link"> <a href=3D"https://fpktrans.SendClean.=
+net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u0dmjdl09ihl%5BWo97dYpsT18KuCfkirsBS=
+Zyf6GX8%609jnn36y.n4vLg3qI89%7BCPrDHHrYpp.ml6yMheu4.=
+N%7B7bx5%60qrYZRvQpIqS8P7e6oqnWWyJUlv46OpIzg8yYM2vUeI1RYeRbd71kTi5xk6gr7nM%=
+7BrlTFqf9n%7B5cTfrX7%5B1XbfzuN%7BDc.%3AkgYrbpcEmbMJUK%5Bmf78GNNLc%60Coq%7B%=
+7BZ7CWOlDKUZmZHBrMKUyDDKB.5ywI.KPLl27EpJ%3AoTtpNeie%3Acdko7LxdLPdCQ6qNxHbfz=
+Sk7jtsSgICQne5g%7BZFsg3YDKeu7z6ZBNnU%7BGFVwV%5BItoeYlF%7Bkj3y%60Du9EIQbHuJb=
+O2Vq5PFiR%3A1wMDh%60tf4dMSTz5j8uCOTf%3Atd7VgqonlllCi%7B23NvYcqcbJ7%7B.=
+wlnl%60CCk%5B6Q7XlN%5B3OyBdkIJlu7P45dzGTQiJ4ktgL3L6%7Bo13RKjN.=
+wL7ef1l2cCUn9ZQU.o.46TKekqOW%3AKl1JpVgmmx3Zzmhiv5VSBNcjl3SxqDp848mVd2%60Dsd=
+J6UR7Fmj%5BUX%60jbKjINVI6zoBfLnu%5BE%7BvdEgqItcYIPJIsoLHry68l%40f%3Eusvf&p=
+=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.=
+1&e=3Ds1" target=3D"_blank" style=3D"font-family: Arial;font-size: =
+14px;font-weight: normal;font-style: normal;font-stretch: normal; =
+line-height: 20px;color: #212121; text-decoration: none !=
+important;word-spacing: 0.2em;max-width: 360px;display:inline-block;min-wid=
+th:352px;width:352px;">Micvir Back Cover for OnePlus Nord CE 2 Lite 5G</a> =
+</p> <p style=3D"line-height:18px;margin-top:0px; margin-bottom: =
+2px;font-family: Arial;font-size: 12px;color: #212121;">Delivery <span =
+style=3D"line-height:18px;font-family: Arial;font-size: 12px;font-weight: =
+bold;color: #139b3b;"> by Fri, Oct 23, 2026 </span> </p> <p =
+style=3D"line-height:18px;margin-top:0px; margin-bottom: 2px;font-family: =
+Arial;font-size: 12px;color: #212121;"> Seller: Store24x <span =
+style=3D"float:right;font-size:12px;padding-right:5px;"> </span> </p> <p =
+style=3D"line-height:18px;margin-top:0px; margin-bottom: 0px;font-family: =
+Arial;font-style: normal;font-size: 12px;font-stretch: normal;color: =
+#212121;">Qty: 1 <span style=3D"float:right;font-size:12px;padding-right:5p=
+x;"> </span> </p> </td>=20
+                    </tr>=20
+                   </tbody>
+                  </table> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+           </tbody>
+          </table>=20
+          <table border=3D"0" width=3D"600" cellpadding=3D"0" =
+cellspacing=3D"0" class=3D"container" style=3D"padding-right: =
+20px;padding-left: 20px;background-color: #fff;width: 642px;max-width: =
+642px;">=20
+           <tbody>
+            <tr>=20
+             <td>=20
+              <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0" =
+style=3D"margin:0; max-width:600px;background: #FFFFFF">=20
+               <tbody>
+                <tr style=3D"color:#212121; display:block; margin:0 auto; =
+clear:both;">=20
+                 <td align=3D"left" valign=3D"top" class=3D"container" =
+style=3D"color:#212121; display:block;">=20
+                  <table width=3D"100%" style=3D"margin-bottom: =
+0px;padding-top: 20px;padding-bottom:20px;border-bottom:1px solid =
+#f0f0f0">=20
+                   <tbody>
+                    <tr>=20
+                     <td width=3D"40%"></td>=20
+                     <td align=3D"right" width=3D"34%"> <p =
+style=3D"margin-top:0px;font-family: Arial;font-size: 14px;text-align: =
+right;color: #3f3f3f;line-height: 14px;padding-top:0px;margin-bottom:0"><sp=
+an style=3D"color: #212121;text-align: right;font-weight: bold">Amount =
+Paid</span></p> </td>=20
+                     <td> <p style=3D"margin-top:0px;font-family: =
+Arial;font-size: 14px;text-align: right;color: #3f3f3f;padding-top:0px;marg=
+in-bottom:0"><span style=3D"padding-right: 0px;font-weight: bold">=E2=82=A8=
+. 1439 </span></p> </td>=20
+                    </tr>=20
+                   </tbody>
+                  </table> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+           </tbody>
+          </table>=20
+          <table border=3D"0" width=3D"600" cellpadding=3D"0" =
+cellspacing=3D"0" class=3D"container" style=3D"padding-right: =
+20px;padding-left: 20px;background-color: #fff;width: 640px;max-width: =
+640px;">=20
+           <tbody>
+            <tr>=20
+             <td>=20
+              <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0" =
+style=3D"width:600px;max-width:600px;background: #FFFFFF">=20
+               <tbody>
+                <tr class=3D"col" style=3D"color:#212121;">=20
+                 <td align=3D"left" valign=3D"top" class=3D"container" =
+style=3D"color:#212121;border-bottom: 1px solid #f0f0f0"> <p style=3D" =
+font-family: Arial;font-size: 14px;font-weight: bold;line-height: 1.=
+86;color: #212121;">Thank you for shopping with Flipkart!</p> <p =
+style=3D"font-family: Arial;font-size: 12px;color: #212121;margin-bottom:5p=
+x;" class=3D"link"> Got Questions? Please get in touch with our <a =
+target=3D"_blank" href=3D"https://fpktrans.SendClean.net/c/?=
+u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u0dmjdl02JowdY1joS%7BbX6dMzwDSbhNBZzT6I85W%=
+609Eg%7Bb.W9uGOgmWjOc%7BfxBRs%60.n%5BEIv.m%5BZOfs5YI7YyTz%60ZwHm5ROPDrtf%5B=
+lS8WpWDCZpBYtydoBCjhSBxqT73%7BbU4Jjqn6.5upSnStMBbiLCL1tfzIX13zisICkyCNDQdyx=
+IpyxwZw3D%5BX4Q%3AyBDWpBNeXhP.y%3All%3AoFGQP48wQ9hX%7BIg.Rzu.=
+xFIgk2roTIDCk%5BP4WYy%3A6IWQfwoZD%7BeU%601bc3G4pucWTwFmr3f%7BjLvltsWchUCnw4=
+lu9yvMjgdsqX768sqIgp1R4QMO%3AEioVfd%60Cq8TVl1hOditHXYzsGFD6JmRlFCDuBstoryng=
+nKX%3A%5BUo4O2nTEg9z%60vx3VNGeVWpvhJGCqGPgUo4dfNKiXICN5oyyf%5BgutqneRgMQPB%=
+3AUufD98B19XS%3AXc546hnxmwpJuT1BjYNB%7Bb1jUg4%60F5kTeEBEnCKIDOGPmNE%5BoNIV9=
+L24TiHx%7BCdrJxS1hSnKY5FFRNp3lbcZZnWuJ%7B.hIYltXnxvY%7Bx%3E%3E%40f%3Eusvf&p=
+=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.=
+1&e=3Ds1" style=3D"color: #2175ff;">24x7 Customer Care</a> </p><br> =
+</td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+            <tr>=20
+             <td>=20
+              <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0" =
+style=3D"width:600px;max-width:600px;margin-top: 14px;">=20
+               <tbody>
+                <tr>=20
+                 <td align=3D"left" valign=3D"top" class=3D"container" =
+style=3D"color:#2c2c2c;line-height:20px; font-weight:300;background-color: =
+transparent;">=20
+                  <table class=3D"body-wrapper">=20
+                   <tbody>
+                    <tr>=20
+                     <td style=3D"width: 60%;text-align: left"><a =
+style=3D"color:#027cd8; text-decoration:none;outline:none;color:#ffffff;fon=
+t-size: 13px;" href=3D"https://fpktrans.SendClean.net/c/?=
+u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u0dmjdl02JowdY1joS%7BbX6dMzwDSbrbCm%60nxVfF=
+iI6cxymuk.qX.ElMiXWWYU%5BIwwLZU1q6vq3dIgH8OfFSplsc9LxWgj9i%3A9Ru51flnjr7GNX=
+JFHfFuL2%5B%7BfE3OqDixUhOg6gNXtGQenoy2DmoJUpPY5y2FS4jR.=
+rlXNhhzZ9sLel7BeZpfkUEeYVgp9TzF%5BLNM.PYVCQt%60j.nZOxm%5BZfk4Q.=
+SYvuqdly8H5YwurGLLNg5jFfxp7TBx%60Qc6wmONHUMOnnvkyFs1rL%7BTNErSIyl9y4Mqi9MGy=
+OqYWhsCyTgM6.oRFIjU7C1g7F4tlV%3AqJn%5BCVFKbVsb%60jKH1vm7Upnxfx%7Bhj4JDilE.=
+I4wTnlVSkxr%3A1t8t6f8%3AuFXJcC.%603CLi6OlukJsyjSwEw%3A%60VY9V6vGirC4HOZukGQ=
+oeL1fYtRDw%7B9Uopkn%60bK1PS2.N9KZn1Ez9ehIBR.Bf1HGB22cR9U3YuitU65bj6gWmuF87W=
+SC%7B8xOSTNKbiQ4DrhcBqyV8nIB%5B%60P%40f%3Eusvf&p=3DeqdsqRns.=
+bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.1&e=3Ds1" =
+target=3D"_blank"><img border=3D"0" src=3D"https://rukminim1.flixcart.=
+com/www/95/36/promos/05/12/2017/e32752cd-6577-47e9-b764-478e7ec06d8a.png?=
+q=3D100" alt=3D"Flipkart.com" style=3D"border:none; margin-top: =
+-12px;"></a></td>=20
+                     <td style=3D"width: 10%;text-align: right;"><a =
+style=3D"text-decoration:none;outline:none;color:#ffffff;font-size: 13px;" =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl02JowdY1joS%7BbX6dMzwDSbretniDz6U5bJMIYmS77ObfL6SfYeF%7B%60O5nid8YDlo=
+qguGk85SfcuIsKBo6sBzc35nLNuBUmde2xrEdI8hOKkR7h976Gun42v3spfygJStw4UGiXstY7X=
+KdqnzT9GxSjOsz3pLNqRf%60lepVxi9OC2KE6Jif%609wk5GVpCG5%5B8CXweHek9pGoVRR2VOh=
+yIEh5464HuHvfHd2L.%5BVCTs.xqFEc3%3AEbX.E1BuoFZ.%3AZMT7h7l%5BBMsviJmt7VMGwzZ=
+O5xH1ex4W8t7cJse787oL%7BD%7BKvl86GLpfTiG%3AEILBJTz5W.=
+fU%5BeY5%5BUSIG2yXYU%6083PRrvjVc9%7BhP4V%7B1oVlrmPQoV2tnc6ubVIu6ZOqm9B51UWJ=
+vctr%3A.O%3AisUi3%3ALdK4%7BrMZWYbL8.sfvFDI2j3XBOobr.=
+%7BPq5W%5BtSgJh8DNhyqoN5F2H2F%3ApIW%7B%5Buv%5BdK%5BULg%7Bki%5B4Mqmgt%7BViPK=
+tS5JBlfJ%7BEFOJCcmWqTHekL1syPKwt%7BxOl%7BnDO.cFEiU%3A7psbUllBpFFPG.=
+ZSnnZ8opwVZV%3E%40f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4=
+BC8-9A77-54ED800D0E94.23.1&e=3Ds1" target=3D"_blank"><img border=3D"0" =
+height=3D"24" src=3D"http://img6a.flixcart.com/www/promos/new/20160910-1837=
+44-google-play-min.png" alt=3D"Flipkart.com" style=3D"border:none;margin-to=
+p:10px;"></a></td>=20
+                     <td style=3D"width: 10%;text-align: right"><a =
+style=3D"text-decoration:none;outline:none;color:#ffffff;font-size: 13px;" =
+href=3D"https://fpktrans.SendClean.net/c/?u=3Diuuq%3B00m%2Fgmjqlbsu%2Fdpn0u=
+0dmjdl02JowdY1joS%7BbX6dMzwDSbm%5B%60P1wJYg2mKfo6slVL%60pF%5B757l%5B9pR9Gx%=
+5B5jp%5BkBFyoKCZ.HqirpfNVCkPPI6ceWYVikqt%5BXt%7B3srZ%7BoLNM55f9.=
+L%60GBI5%5BP%7B%5Bc%60%5BL5wi6WM4UhY5smq8hvhfxCig.Ed%7BHJXLnDrHX71Gt8xG%7Bh=
+73yg6v5I97k%3AfIDJq6VVZfGvFYe1WfW2UgSkRv1Lght2GpmGE2u%60slNgLkCehB68Wy%60%3=
+AbPeR%7Bs%7Bop%5BsSf4S3BQfMSeIwbtcocTtrjo7onoO.yzV%5BiLlW1YS%7Br1grwK2%3ANQ=
+TNl9d64PvxbRcbOrR%3APdtOWvHT%5BJ3rJTcMklBZrPxkeV32fkELnQO%60DmIs%7Bs.=
+g%60hWirXYixErh26UeT.8nZeLUqMfhNXYcR7GYuOKJL734ct%7BU2uDHuh%3A8pMfgZ%60KFTo=
+VfR%5BxdgV1u47NV%7BkYexyrHexKIcRUov%5B6CcBhhgYMpNSdRjNmybD1XW3Bk%5BPsrqgzhx=
+XnUZQKT1q4ffBMGIfz%7BVqwSQe%5BOqTLW%3AZcBl.5NXn3HKmcTN%60pC26MGqtMm99%3E%40=
+f%3Eusvf&p=3DeqdsqRns.bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0=
+E94.23.1&e=3Ds1" target=3D"_blank"><img border=3D"0" height=3D"24" =
+src=3D"http://img5a.flixcart.com/www/promos/new/20160910-183649-apple-store=
+-min.png" alt=3D"Flipkart.com" style=3D"border:none;margin-top:10px;"></a><=
+/td>=20
+                    </tr>=20
+                   </tbody>
+                  </table> </td>=20
+                </tr>=20
+                <tr>=20
+                 <td>=20
+                  <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0"=
+ style=3D"margin: 0 auto;width:600px;max-width:600px;margin-top: 4px;">=20
+                   <tbody>
+                    <tr>=20
+                     <td align=3D"left" valign=3D"top" class=3D"container" =
+style=3D"color:#2c2c2c;line-height:20px; font-weight:300;background-color: =
+transparent;">=20
+                      <table class=3D"body-wrapper">=20
+                       <tbody>
+                        <tr>=20
+                         <td> <p style=3D" font-family: Arial;font-size: =
+10px;color: #878787;">This email was sent from a notification-only address =
+that cannot accept incoming email. Please do not reply to this message.</p>=
+ </td>=20
+                        </tr>=20
+                       </tbody>
+                      </table> </td>=20
+                    </tr>=20
+                   </tbody>
+                  </table> </td>=20
+                </tr>=20
+               </tbody>
+              </table> </td>=20
+            </tr>=20
+           </tbody>
+          </table> </td>=20
+        </tr>=20
+       </tbody>
+      </table> </td>=20
+    </tr>=20
+   </tbody>
+  </table>=20
+  <script src=3D"/e4aa587d98de5f92d9c2d8657e2b4671d9818fc2d1f6d0f0c5f502a98=
+1bd780c/ns.js"></script>=20
+  <script src=3D"/5da05fa04288f40aa024a922317af9f51eeb457f5f42f21c3aeb9b5d6=
+179aa52/ns.js"></script> =20
+ <img src=3D"https://fpktrans.SendClean.net/o/?p=3DeqdsqRns.=
+bnkbtbbk--340665708-66125874-9AE3-4BC8-9A77-54ED800D0E94.23.1" height=3D"1"=
+ width=3D"1"/>
+</body>
+</html>
+
+------sm-b=_-?=_1-17922523088010.1045113722115647--
