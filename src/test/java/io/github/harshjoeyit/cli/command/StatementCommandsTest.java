@@ -8,6 +8,7 @@ import io.github.harshjoeyit.core.model.NormalizedTransaction;
 import io.github.harshjoeyit.core.model.Statement;
 import io.github.harshjoeyit.core.model.TxnReviewStatus;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
+import io.github.harshjoeyit.core.parse.model.TxnMode;
 import io.github.harshjoeyit.core.parse.model.TxnType;
 import io.github.harshjoeyit.export.model.CsvExportResult;
 import io.github.harshjoeyit.export.model.ExportExclusionReason;
@@ -27,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +54,7 @@ class StatementCommandsTest {
     @Mock private CsvExportService csvExportService;
     @Mock private SplitService splitService;
     @Mock private FriendService friendService;
+    @Mock private io.github.harshjoeyit.enrichment.service.EnrichmentService enrichmentService;
 
     private StatementCommands commands;
 
@@ -62,7 +66,8 @@ class StatementCommandsTest {
                 reviewService,
                 csvExportService,
                 splitService,
-                friendService
+                friendService,
+                enrichmentService
         );
     }
 
@@ -271,5 +276,96 @@ class StatementCommandsTest {
         String output = commands.export(stmtId, null, null, "default", "./export", false);
 
         assertThat(output).isEqualTo("Export cancelled.");
+    }
+
+    @Test
+    @DisplayName("parse triggers async enrichment when new statement is imported")
+    void parse_triggersAsyncEnrichment(@TempDir Path tempDir) throws Exception {
+        File file = Files.createFile(tempDir.resolve("test.csv")).toFile();
+        when(instrumentService.getStatementType("HDFC_ACC")).thenReturn(Optional.of(StatementType.HDFC_ACC));
+
+        UUID newStmtId = UUID.randomUUID();
+        Statement statement = Statement.builder().id(newStmtId).build();
+
+        NormalizedTransaction newTxn = NormalizedTransaction.builder()
+                .statementId(newStmtId)
+                .datetime(LocalDateTime.parse("2024-09-01T10:00:00"))
+                .amount(500.0)
+                .direction(TxnDirection.DEBIT)
+                .type(TxnType.PURCHASE)
+                .counterparty("Swiggy")
+                .reviewStatus(TxnReviewStatus.PENDING)
+                .build();
+
+        DeduplicationResult cleanResult = new DeduplicationResult(
+                List.of(newTxn),
+                List.of(),
+                List.of(),
+                null
+        );
+        when(statementService.importStatement(eq(file), eq(FileType.DELIMITED), eq(StatementType.HDFC_ACC), eq("HDFC_ACC")))
+                .thenReturn(new StatementImportResult(statement, cleanResult));
+        when(reviewService.findPendingReviewTransaction(newStmtId)).thenReturn(List.of(newTxn));
+
+        commands.parse(file, "HDFC_ACC");
+
+        org.mockito.Mockito.verify(enrichmentService).enrichStatementAsync(newStmtId);
+    }
+
+    @Test
+    @DisplayName("review displays bullet points for enriched items beneath transaction line")
+    void review_displaysBulletPointsForEnrichedItems() throws Exception {
+        UUID stmtId = UUID.randomUUID();
+        UUID txnId = UUID.randomUUID();
+        NormalizedTransaction txn = NormalizedTransaction.builder()
+                .id(txnId)
+                .statementId(stmtId)
+                .amount(290.0)
+                .direction(TxnDirection.DEBIT)
+                .datetime(LocalDateTime.parse("2024-09-01T10:00:00"))
+                .counterparty("SWIGGY")
+                .mode(TxnMode.UPI)
+                .type(TxnType.PURCHASE)
+                .build();
+
+        when(reviewService.findPendingReviewTransaction(stmtId)).thenReturn(List.of(txn));
+        when(reviewService.getTransaction(txnId)).thenReturn(Optional.of(txn));
+
+        io.github.harshjoeyit.enrichment.model.TransactionItem item1 = io.github.harshjoeyit.enrichment.model.TransactionItem.builder()
+                .id(1L)
+                .transactionId(txnId)
+                .itemName("All American Burger")
+                .totalPrice(210.0)
+                .outletName("Truffles")
+                .build();
+        io.github.harshjoeyit.enrichment.model.TransactionItem item2 = io.github.harshjoeyit.enrichment.model.TransactionItem.builder()
+                .id(2L)
+                .transactionId(txnId)
+                .itemName("Peri Peri Fries")
+                .totalPrice(80.0)
+                .outletName("Truffles")
+                .build();
+        when(enrichmentService.getItemsForTransaction(txnId)).thenReturn(List.of(item1, item2));
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayInputStream in = new ByteArrayInputStream("q\n".getBytes());
+        org.jline.terminal.Terminal terminal = org.jline.terminal.TerminalBuilder.builder()
+                .streams(in, out)
+                .build();
+
+        @SuppressWarnings("unchecked")
+        org.springframework.beans.factory.ObjectProvider<org.jline.terminal.Terminal> terminalProvider =
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(terminalProvider.getObject()).thenReturn(terminal);
+        org.springframework.test.util.ReflectionTestUtils.setField(commands, "terminalProvider", terminalProvider);
+
+        commands.review(stmtId);
+
+        String console = out.toString();
+        assertThat(console)
+                .contains("SWIGGY")
+                .contains("- Truffles: All American Burger | ₹210.00")
+                .contains("- Truffles: Peri Peri Fries | ₹80.00")
+                .contains("[c] Categorize  [s] Split");
     }
 }

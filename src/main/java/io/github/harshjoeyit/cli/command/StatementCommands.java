@@ -10,6 +10,10 @@ import io.github.harshjoeyit.core.mapping.model.MappingRule;
 import io.github.harshjoeyit.core.model.*;
 import io.github.harshjoeyit.core.parse.model.TxnDirection;
 import io.github.harshjoeyit.core.parse.model.TxnType;
+import io.github.harshjoeyit.enrichment.model.EnrichmentStatus;
+import io.github.harshjoeyit.enrichment.model.TransactionItem;
+import io.github.harshjoeyit.enrichment.parser.EmailParserUtils;
+import io.github.harshjoeyit.enrichment.service.EnrichmentService;
 import io.github.harshjoeyit.export.model.CsvExportInput;
 import io.github.harshjoeyit.export.model.CsvExportResult;
 import io.github.harshjoeyit.export.model.ExportExclusionReason;
@@ -65,6 +69,7 @@ public class StatementCommands extends AbstractShellComponent {
     private final CsvExportService csvExportService;
     private final SplitService splitService;
     private final FriendService friendService;
+    private final EnrichmentService enrichmentService;
 
     public StatementCommands(
             StatementService statementService,
@@ -72,13 +77,15 @@ public class StatementCommands extends AbstractShellComponent {
             ReviewService reviewService,
             CsvExportService csvExportService,
             SplitService splitService,
-            FriendService friendService) {
+            FriendService friendService,
+            EnrichmentService enrichmentService) {
         this.statementService = statementService;
         this.instrumentService = instrumentService;
         this.reviewService = reviewService;
         this.csvExportService = csvExportService;
         this.splitService = splitService;
         this.friendService = friendService;
+        this.enrichmentService = enrichmentService;
     }
 
     @Command(
@@ -172,6 +179,12 @@ public class StatementCommands extends AbstractShellComponent {
 
             // render new transactions
             sb.append(renderTable(statementImportResult.newTransactions(), file.getName(), statementType.get(), totalInFile, dupCount));
+
+            // Trigger asynchronous email enrichment for new statement
+            if (statementImportResult.statement() != null && statementImportResult.statement().id() != null) {
+                enrichmentService.enrichStatementAsync(statementImportResult.statement().id());
+            }
+
             return sb.toString();
         } catch (Exception e) {
             log.error("Error parsing statement", e);
@@ -188,13 +201,18 @@ public class StatementCommands extends AbstractShellComponent {
     ) {
         PrintWriter writer = getTerminal().writer();
         try {
-            List<NormalizedTransaction> transactions = reviewService.findPendingReviewTransaction(statementId);
+            List<NormalizedTransaction> transactions = new ArrayList<>(reviewService.findPendingReviewTransaction(statementId));
 
             if (transactions.isEmpty()) {
                 writer.println("All transactions are reviewed.");
                 getTerminal().flush();
                 return;
             }
+
+            UUID effectiveStatementId = (statementId != null)
+                    ? statementId
+                    : transactions.get(0).getStatementId();
+            handleEnrichmentStatusCheck(effectiveStatementId, writer);
 
             BindingReader bindingReader = new BindingReader(getTerminal().reader());
             KeyMap<ReviewNavAction> keyMap = buildReviewKeyMap();
@@ -236,6 +254,20 @@ public class StatementCommands extends AbstractShellComponent {
                 writer.println(String.format("%n[%d/%d] %s | %s | ₹%.2f (%s%s) | %s | %s | %s",
                         i + 1, transactions.size(), readFriendlyDateTime(txn.getDatetime()), txn.getMode(),
                         txn.getAmount(), dir, shareInfo, counterparty, comment, txn.getType()));
+
+                // Display enriched order items as bullet points if present
+                List<TransactionItem> items = enrichmentService.getItemsForTransaction(currentTxnId);
+                for (TransactionItem item : items) {
+                    String qty = item.quantity() > 1 ? item.quantity() + "x " : "";
+                    String itemDesc = (item.outletName() != null && !item.outletName().isBlank()
+                            && !item.outletName().equalsIgnoreCase(item.itemName()))
+                            ? item.outletName() + ": " + item.itemName()
+                            : item.itemName();
+                    String truncatedDesc = EmailParserUtils.truncate(itemDesc, 45);
+                    String priceStr = item.totalPrice() > 0 ? String.format(" | ₹%.2f", item.totalPrice()) : "";
+                    writer.println(String.format("    - %s%s%s", qty, truncatedDesc, priceStr));
+                }
+
                 // Tooltip for user
                 writer.println("[c] Categorize  [s] Split  [r] Save Rule  [n/→] Next  [p/←] Prev  [q] Quit");
                 writer.flush();
@@ -928,5 +960,64 @@ public class StatementCommands extends AbstractShellComponent {
         TableBuilder tableBuilder = new TableBuilder(model);
         tableBuilder.addFullBorder(BorderStyle.fancy_light);
         return tableBuilder.build().render(120);
+    }
+
+    private void handleEnrichmentStatusCheck(UUID statementId, PrintWriter writer) {
+        if (!enrichmentService.isEnabled()) {
+            return;
+        }
+
+        EnrichmentStatus status = enrichmentService.getStatus(statementId);
+
+        if (status == EnrichmentStatus.IN_PROGRESS) {
+            List<SelectorItem<String>> options = List.of(
+                    SelectorItem.of("Wait for enrichment to complete", "WAIT"),
+                    SelectorItem.of("Continue review without waiting", "CONTINUE")
+            );
+
+            Optional<String> choice = promptSelectSingleItem(
+                    "⏳ Email enrichment is currently running in the background:", options, 2
+            );
+
+            if (choice.isPresent() && "WAIT".equals(choice.get())) {
+                writer.println("Waiting for email enrichment to complete...");
+                writer.flush();
+                int attempts = 0;
+                while (enrichmentService.getStatus(statementId) == EnrichmentStatus.IN_PROGRESS && attempts < 30) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                    attempts++;
+                }
+                EnrichmentStatus finalStatus = enrichmentService.getStatus(statementId);
+                if (finalStatus == EnrichmentStatus.COMPLETED) {
+                    writer.println("✓ Email enrichment completed successfully!");
+                } else if (finalStatus == EnrichmentStatus.FAILED) {
+                    writer.println("⚠️ Email enrichment failed: " + enrichmentService.getErrorMessage(statementId));
+                }
+                writer.flush();
+            }
+        } else if (status == EnrichmentStatus.FAILED) {
+            String errorMsg = enrichmentService.getErrorMessage(statementId);
+            String title = (errorMsg != null && !errorMsg.isBlank())
+                    ? "⚠️ Email enrichment failed (" + errorMsg + "):"
+                    : "⚠️ Email enrichment failed:";
+
+            List<SelectorItem<String>> options = List.of(
+                    SelectorItem.of("Retry enrichment in background", "RETRY"),
+                    SelectorItem.of("Continue review without enrichment", "CONTINUE")
+            );
+
+            Optional<String> choice = promptSelectSingleItem(title, options, 2);
+
+            if (choice.isPresent() && "RETRY".equals(choice.get())) {
+                writer.println("Retrying email enrichment in background...");
+                writer.flush();
+                enrichmentService.retryEnrichment(statementId);
+            }
+        }
     }
 }
